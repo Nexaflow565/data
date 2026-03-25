@@ -2,31 +2,93 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>EasyData — Instant Data Bundles in Ghana</title>
+  
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
   <style>
     :root {
-      --bg: #0a0f1e;
-      --surface: #111827;
-      --surface2: #1a2236;
-      --border: #1f2d45;
-      --accent: #00e5a0;
-      --accent2: #0077ff;
-      --accent3: #ff6b35;
-      --text: #e8edf5;
-      --muted: #6b7a96;
-      --mtn: #ffcc00;
-      --telecel: #e20026;
-      --airteltigo: #e40000;
-      --glo: #00a651;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface2: #f1f5f9;
+      --border: #e2e8f0;
+      --accent: #006B3F;
+      --accent2: #00A651;
+      --text: #111827;
+      --muted: #64748b;
       --card-radius: 16px;
       --font-head: 'Syne', sans-serif;
       --font-body: 'DM Sans', sans-serif;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
+    html, body {
+      height: 100%;
+      min-height: 100vh;
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    #app-screen {
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    .main-content {
+      min-height: calc(100vh - 140px);   /* topbar + bottom nav */
+      padding: 16px 16px 100px;
+      overflow-y: auto;
+    }
+
+    .page {
+      min-height: 100%;
+    }
+
+    /* Make cards and buttons more mobile-friendly */
+    .card {
+      border-radius: var(--card-radius);
+    }
+
+    .btn-green, .btn-outline, .quick-card, .net-pill, .pkg-box, .amount-chip {
+      min-height: 52px;
+      font-size: 15px;
+    }
+
+    /* Bottom navigation fix */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 99;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Improve touch targets */
+    button, .nav-item, .quick-card {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Dark mode fallback (in case you want to keep some dark elements) */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0f1e;
+        --surface: #111827;
+        --text: #e8edf5;
+      }
+    }
+  </style>
+</head>
     body {
       background: var(--bg);
       color: var(--text);
