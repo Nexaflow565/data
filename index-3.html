@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0f1e">
+<title>EasyData — Instant Data Bundles Ghana</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0f1e;--surface:#111827;--surface2:#1a2236;--border:#1f2d45;
+  --accent:#00e5a0;--accent2:#0077ff;--accent3:#ff6b35;
+  --text:#e8edf5;--muted:#6b7a96;
+  --mtn:#ffcc00;--telecel:#e20026;--at:#ff6b35;
+  --r:14px;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+html,body{width:100%;min-height:100%;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--fb)}
+
+/* ── PAGES ─────────────────────────────────────────── */
+.pg{display:none;min-height:100vh}
+.pg.on{display:block}
+
+/* ── NAV ───────────────────────────────────────────── */
+.topnav{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;
+  background:rgba(10,15,30,.95);
+  border-bottom:1px solid var(--border);
+}
+.logo{font-family:var(--fh);font-size:20px;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo span{-webkit-text-fill-color:var(--accent3)}
+.nav-r{display:flex;align-items:center;gap:10px}
+.bal-pill{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:50px;padding:5px 14px;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer}
+.av{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--fh);font-weight:700;font-size:13px;color:var(--bg);cursor:pointer}
+
+/* ── BUTTONS ────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 26px;border-radius:50px;font-family:var(--fb);font-size:14px;
+  font-weight:600;cursor:pointer;border:none;outline:none;transition:all .2s}
+.bp{background:linear-gradient(135deg,var(--accent),#00b87a);color:var(--bg);box-shadow:0 0 20px rgba(0,229,160,.25)}
+.bs{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.bo{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.bsm{padding:8px 16px;font-size:13px}
+.bfw{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── FORMS ──────────────────────────────────────────── */
+.fg{margin-bottom:18px}
+.fg label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg select{
+  width:100%;padding:12px 14px;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:10px;color:var(--text);font-family:var(--fb);font-size:15px;outline:none;transition:border-color .2s}
+.fg input:focus,.fg select:focus{border-color:var(--accent)}
+.errmsg{color:#ff6b6b;font-size:12px;margin-top:4px;display:none}
+.divline{display:flex;align-items:center;gap:10px;margin:20px 0}
+.divline::before,.divline::after{content:'';flex:1;height:1px;background:var(--border)}
+.divline span{color:var(--muted);font-size:12px}
+.alink{text-align:center;margin-top:18px;font-size:14px;color:var(--muted)}
+.alink a{color:var(--accent);cursor:pointer;font-weight:600}
+.spinner{width:18px;height:18px;border-radius:50%;border:2px solid rgba(0,229,160,.2);border-top-color:var(--accent);animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── LANDING ─────────────────────────────────────────── */
+.hero{padding:60px 20px 48px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(0,229,160,.1) 0%,transparent 60%);pointer-events:none}
+.hbadge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.3);border-radius:50px;padding:5px 14px;font-size:12px;color:var(--accent);margin-bottom:20px}
+.hbadge i{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hero h1{font-family:var(--fh);font-size:clamp(32px,8vw,64px);font-weight:800;line-height:1.1;margin-bottom:16px}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{font-size:16px;color:var(--muted);max-width:460px;margin:0 auto 32px;line-height:1.7}
+.hstats{display:flex;gap:32px;justify-content:center;margin-top:48px;flex-wrap:wrap}
+.hstat .n{font-family:var(--fh);font-size:28px;font-weight:800;color:var(--accent)}
+.hstat .l{font-size:12px;color:var(--muted);margin-top:3px}
+.netbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:24px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.npill{display:flex;align-items:center;gap:8px;padding:8px 18px;border-radius:50px;background:var(--surface);border:1px solid var(--border);font-size:13px;font-weight:600}
+.ndot{width:10px;height:10px;border-radius:50%}
+.lsec{padding:56px 20px;max-width:1000px;margin:0 auto}
+.slbl{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:12px}
+.stit{font-family:var(--fh);font-size:clamp(24px,4vw,40px);font-weight:800;line-height:1.2;margin-bottom:12px}
+.ssub{color:var(--muted);font-size:16px;line-height:1.7;max-width:480px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:40px}
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;transition:transform .2s,border-color .2s}
+.fc:hover{border-color:var(--accent);transform:translateY(-3px)}
+.fi{width:48px;height:48px;border-radius:12px;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.2);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px}
+.fc h3{font-family:var(--fh);font-size:16px;font-weight:700;margin-bottom:8px}
+.fc p{color:var(--muted);font-size:13px;line-height:1.6}
+.steps{display:flex;gap:24px;margin-top:40px;flex-wrap:wrap}
+.step{flex:1;min-width:160px}
+.snum{font-family:var(--fh);font-size:40px;font-weight:800;color:rgba(0,229,160,.15);line-height:1;margin-bottom:12px}
+.step h3{font-family:var(--fh);font-size:15px;font-weight:700;margin-bottom:6px}
+.step p{color:var(--muted);font-size:13px;line-height:1.5}
+footer{border-top:1px solid var(--border);padding:40px 20px;display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.flinks{display:flex;gap:16px;flex-wrap:wrap}
+.flinks a{color:var(--muted);font-size:13px;text-decoration:none}
+.flinks a:hover{color:var(--accent)}
+footer p{color:var(--muted);font-size:12px}
+
+/* ── AUTH ────────────────────────────────────────────── */
+.awrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;background:radial-gradient(ellipse 60% 60% at 30% 20%,rgba(0,229,160,.07) 0%,transparent 60%)}
+.acard{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 32px}
+.alogo{font-family:var(--fh);font-size:22px;font-weight:800;text-align:center;margin-bottom:6px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;cursor:pointer}
+.asub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:28px}
+.acard h2{font-family:var(--fh);font-size:22px;font-weight:700;margin-bottom:20px}
+
+/* ── DASHBOARD ───────────────────────────────────────── */
+.dboard{display:none;min-height:100vh}
+.dboard.on{display:block}
+/* Sidebar desktop only */
+.dlayout{display:flex;min-height:calc(100vh - 61px)}
+.dside{
+  width:220px;flex-shrink:0;
+  background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 14px;
+  position:sticky;top:61px;height:calc(100vh - 61px);overflow-y:auto}
+.dside .sg{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:10px 10px 6px;margin-top:6px}
+.si{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:all .2s;font-size:13px;font-weight:500;color:var(--muted)}
+.si:hover{background:var(--surface2);color:var(--text)}
+.si.on{background:rgba(0,229,160,.12);color:var(--accent);font-weight:600}
+.si .ic{width:18px;text-align:center;font-size:15px}
+.bc{margin-left:auto;background:var(--accent);color:var(--bg);font-size:10px;font-weight:700;border-radius:50px;padding:2px 7px}
+/* Main area */
+.dmain{flex:1;min-width:0;padding:28px 24px 80px}
+.ph{margin-bottom:24px}
+.ph h1{font-family:var(--fh);font-size:24px;font-weight:800}
+.ph p{color:var(--muted);font-size:13px;margin-top:4px}
+/* Tabs */
+.tab{display:none}
+.tab.on{display:block}
+/* Wallet cards */
+.wcards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.wc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.wc.pri{background:linear-gradient(135deg,#0a2a1e,#0d3526);border-color:rgba(0,229,160,.3)}
+.wc .wl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.wc .wa{font-family:var(--fh);font-size:28px;font-weight:800;color:var(--accent)}
+.wc .ws{font-size:12px;color:var(--muted);margin-top:6px}
+.wc .wi{font-size:28px;margin-bottom:10px}
+/* Network tabs */
+.ntabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.ntab{padding:7px 16px;border-radius:50px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--muted);transition:all .2s;display:flex;align-items:center;gap:7px}
+.ntab .td{width:9px;height:9px;border-radius:50%}
+.ntab.amtn{border-color:var(--mtn);color:var(--mtn);background:rgba(255,204,0,.08)}
+.ntab.atel{border-color:var(--telecel);color:var(--telecel);background:rgba(226,0,38,.08)}
+.ntab.aat{border-color:var(--at);color:var(--at);background:rgba(255,107,53,.08)}
+/* Bundle cards */
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.bcard{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.bcard:hover{transform:translateY(-3px)}
+.bcard.mtn:hover{border-color:var(--mtn)}
+.bcard.telecel:hover{border-color:var(--telecel)}
+.bcard.at:hover{border-color:var(--at)}
+.bcard.pop::before{content:'HOT';position:absolute;top:10px;right:-6px;background:var(--accent);color:var(--bg);font-size:8px;font-weight:800;padding:2px 12px 2px 6px;clip-path:polygon(0 0,100% 0,100% 100%,8px 100%)}
+.bnbadge{display:inline-flex;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;margin-bottom:10px;text-transform:uppercase}
+.bnbadge.mtn{background:rgba(255,204,0,.15);color:var(--mtn)}
+.bnbadge.telecel{background:rgba(226,0,38,.12);color:var(--telecel)}
+.bnbadge.at{background:rgba(255,107,53,.12);color:var(--at)}
+.bsz{font-family:var(--fh);font-size:24px;font-weight:800;margin-bottom:3px}
+.bval{font-size:11px;color:var(--muted);margin-bottom:12px}
+.bpr{font-family:var(--fh);font-size:18px;font-weight:700;color:var(--accent)}
+.bpr span{font-size:11px;color:var(--muted);font-weight:400;font-family:var(--fb)}
+.bbtn{width:100%;margin-top:12px;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.bbtn.mtn{background:rgba(255,204,0,.15);color:var(--mtn);border:1px solid rgba(255,204,0,.3)}
+.bbtn.mtn:hover{background:var(--mtn);color:var(--bg)}
+.bbtn.telecel{background:rgba(226,0,38,.1);color:var(--telecel);border:1px solid rgba(226,0,38,.3)}
+.bbtn.telecel:hover{background:var(--telecel);color:#fff}
+.bbtn.at{background:rgba(255,107,53,.1);color:var(--at);border:1px solid rgba(255,107,53,.3)}
+.bbtn.at:hover{background:var(--at);color:#fff}
+/* Surface card */
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+/* Topup */
+.tmgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.tm{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:20px;text-align:center;cursor:pointer;transition:all .2s}
+.tm:hover,.tm.on{border-color:var(--accent);background:rgba(0,229,160,.04)}
+.tm .tmi{font-size:28px;margin-bottom:8px}
+.tm .tmn{font-weight:700;font-size:14px;margin-bottom:3px}
+.tm .tms{font-size:11px;color:var(--muted)}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+.chip{padding:6px 14px;border-radius:50px;font-size:12px;font-weight:600;background:var(--surface2);border:1px solid var(--border);cursor:pointer;color:var(--muted);transition:all .2s}
+.chip:hover,.chip.on{background:rgba(0,229,160,.1);border-color:var(--accent);color:var(--accent)}
+/* Transactions */
+.txt{width:100%;border-collapse:collapse}
+.txt th{text-align:left;padding:10px 14px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)}
+.txt td{padding:12px 14px;font-size:13px;border-bottom:1px solid rgba(31,45,69,.4)}
+.txs{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:50px;font-size:11px;font-weight:600}
+.txs.ok{background:rgba(0,229,160,.1);color:var(--accent)}
+.txa.cr{color:var(--accent)}
+.txa.db{color:#ff6b6b}
+.nd{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.nd.mtn{background:var(--mtn)}.nd.telecel{background:var(--telecel)}.nd.at{background:var(--at)}
+/* Modal */
+.mover{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:16px}
+.mover.on{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px 24px;width:100%;max-width:440px;position:relative;animation:mIn .25s ease}
+@keyframes mIn{from{opacity:0;transform:scale(.93) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.mcls{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--muted)}
+.modal h2{font-family:var(--fh);font-size:20px;font-weight:700;margin-bottom:6px}
+.modal p{color:var(--muted);font-size:13px;margin-bottom:22px;line-height:1.6}
+.msum{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px}
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:6px 0}
+.mrow+.mrow{border-top:1px solid var(--border)}
+.mrow .mk{font-size:12px;color:var(--muted)}
+.mrow .mv{font-size:13px;font-weight:600}
+.mrow .mv.ac{color:var(--accent)}
+/* Mobile bottom nav */
+.botnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--surface);border-top:1px solid var(--border);padding:6px 0}
+.bnrow{display:flex}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;cursor:pointer;color:var(--muted);font-size:10px;transition:color .2s}
+.bni .ic{font-size:20px}
+.bni.on{color:var(--accent)}
+/* Toast */
+#toast{position:fixed;top:16px;right:16px;left:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.tk{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.3);animation:tIn .3s ease;pointer-events:auto}
+.tk.ok{border-left:3px solid var(--accent)}
+.tk.er{border-left:3px solid #ff6b6b}
+.tk.in{border-left:3px solid var(--accent2)}
+@keyframes tIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+.tk .ti{font-size:18px}
+.tk .tm2{font-size:13px;font-weight:500}
+/* WhatsApp */
+.wa{position:fixed;bottom:76px;right:16px;z-index:300;width:52px;height:52px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,.4);text-decoration:none;color:#fff}
+
+/* ── DESKTOP OVERRIDES ───────────────────────────────── */
+@media(min-width:769px){
+  .botnav{display:none!important}
+  .dmain{padding-bottom:32px}
+  .wa{bottom:24px;right:24px}
+  #toast{left:auto;right:24px;top:24px;width:300px}
+}
+/* ── MOBILE ──────────────────────────────────────────── */
+@media(max-width:768px){
+  .dside{display:none!important}
+  .botnav{display:block}
+  .dlayout{display:block}
+  .dmain{
+    display:block;
+    width:100%;
+    padding:16px 14px 90px;
+  }
+  .wcards{grid-template-columns:1fr;gap:10px;margin-bottom:16px}
+  .bgrid{grid-template-columns:1fr 1fr;gap:10px}
+  .bcard{padding:12px}
+  .bsz{font-size:20px}
+  .bpr{font-size:15px}
+  .tmgrid{grid-template-columns:1fr;gap:10px;margin-bottom:16px}
+  .topup-form-wrap{max-width:100%}
+  .txt th,.txt td{padding:8px 8px;font-size:11px}
+  .ph h1{font-size:20px}
+  .ntabs{gap:5px}
+  .ntab{padding:6px 11px;font-size:11px}
+  .acard{padding:28px 18px}
+  .modal{padding:24px 16px}
+  footer{flex-direction:column;gap:12px;text-align:center}
+  .flinks{justify-content:center}
+  .hstats{gap:20px}
+  .fgrid{grid-template-columns:1fr}
+  .steps{flex-direction:column;gap:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- WhatsApp -->
+<a href="https://wa.me/233536426562" target="_blank" class="wa">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
+
+<!-- ══════════ LANDING ══════════ -->
+<div id="p-land" class="pg on">
+  <nav class="topnav">
+    <div class="logo" onclick="go('p-land')">Easy<span>Data</span></div>
+    <div class="nav-r">
+      <button class="btn bs bsm" onclick="go('p-login')">Login</button>
+      <button class="btn bp bsm" onclick="go('p-reg')">Get Started</button>
+    </div>
+  </nav>
+  <div class="hero">
+    <div class="hbadge"><i></i> Ghana's Fastest Data Platform</div>
+    <h1>Buy Data Bundles<br>in <em>Seconds</em></h1>
+    <p>Instant MTN, Telecel & AirtelTigo bundles. Top up once, buy anytime.</p>
+    <button class="btn bp" onclick="go('p-reg')">🚀 Get Started Free</button>
+    <div class="hstats">
+      <div class="hstat"><div class="n">50K+</div><div class="l">Bundles Sold</div></div>
+      <div class="hstat"><div class="n">3</div><div class="l">Networks</div></div>
+      <div class="hstat"><div class="n">99.9%</div><div class="l">Uptime</div></div>
+      <div class="hstat"><div class="n">24/7</div><div class="l">Support</div></div>
+    </div>
+  </div>
+  <div class="netbar">
+    <div class="npill"><div class="ndot" style="background:var(--mtn)"></div>MTN Ghana</div>
+    <div class="npill"><div class="ndot" style="background:var(--telecel)"></div>Telecel</div>
+    <div class="npill"><div class="ndot" style="background:var(--at)"></div>AirtelTigo</div>
+  </div>
+  <div class="lsec">
+    <div class="slbl">Why EasyData</div>
+    <div class="stit">Everything you need<br>to buy data fast</div>
+    <p class="ssub">No queues. No stress. Pick your network, choose a bundle — done.</p>
+    <div class="fgrid">
+      <div class="fc"><div class="fi">⚡</div><h3>Instant Delivery</h3><p>Bundles delivered immediately after payment. No waiting.</p></div>
+      <div class="fc"><div class="fi">💰</div><h3>Best Rates</h3><p>Lowest prices on all networks in Ghana. Save every time.</p></div>
+      <div class="fc"><div class="fi">🔒</div><h3>Safe & Secure</h3><p>Your wallet and transactions are fully protected.</p></div>
+      <div class="fc"><div class="fi">👛</div><h3>Wallet System</h3><p>Top up once and buy multiple bundles without re-entering details.</p></div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--border)"></div>
+  <div class="lsec">
+    <div class="slbl">Simple Process</div>
+    <div class="stit">How it works</div>
+    <div class="steps">
+      <div class="step"><div class="snum">01</div><h3>Create Account</h3><p>Sign up free in under a minute.</p></div>
+      <div class="step"><div class="snum">02</div><h3>Top Up Wallet</h3><p>Add funds via MTN MoMo, Telecel Cash or AirtelTigo Money.</p></div>
+      <div class="step"><div class="snum">03</div><h3>Choose Bundle</h3><p>Pick your network and bundle size.</p></div>
+      <div class="step"><div class="snum">04</div><h3>Done ✓</h3><p>Bundle delivered instantly to any number.</p></div>
+    </div>
+  </div>
+  <footer>
+    <div>
+      <div style="font-family:var(--fh);font-weight:800;font-size:18px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">EasyData</div>
+      <p style="margin-top:4px">Ghana's #1 instant data bundle platform</p>
+    </div>
+    <div class="flinks">
+      <a href="https://wa.me/233536426562" target="_blank">WhatsApp Support</a>
+      <a href="tel:+233536426562">0536 426 562</a>
+    </div>
+    <p>© 2025 EasyData Ghana. All rights reserved.</p>
+  </footer>
+</div>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="p-login" class="pg">
+  <div class="awrap">
+    <div class="acard">
+      <div class="alogo" onclick="go('p-land')">EasyData</div>
+      <div class="asub">Ghana's Fastest Data Bundle Platform</div>
+      <h2>Welcome back 👋</h2>
+      <div class="fg"><label>Phone Number</label><input type="tel" id="li-phone" placeholder="0241234567" maxlength="10"></div>
+      <div class="fg"><label>Password</label><input type="password" id="li-pass" placeholder="Your password"></div>
+      <div id="li-err" class="errmsg"></div>
+      <button class="btn bp bfw" onclick="doLogin()">Login to Account</button>
+      <div class="divline"><span>or</span></div>
+      <div class="alink">No account? <a onclick="go('p-reg')">Create one free</a></div>
+      <div class="alink" style="margin-top:10px"><a onclick="go('p-land')">← Back to Home</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ REGISTER ══════════ -->
+<div id="p-reg" class="pg">
+  <div class="awrap">
+    <div class="acard">
+      <div class="alogo" onclick="go('p-land')">EasyData</div>
+      <div class="asub">Start buying data in under a minute</div>
+      <h2>Create Account 🚀</h2>
+      <div class="fg"><label>Full Name</label><input type="text" id="rg-name" placeholder="Kwame Mensah"></div>
+      <div class="fg"><label>Phone Number</label><input type="tel" id="rg-phone" placeholder="0241234567" maxlength="10"></div>
+      <div class="fg"><label>Password</label><input type="password" id="rg-pass" placeholder="Min. 6 characters"></div>
+      <div class="fg"><label>Confirm Password</label><input type="password" id="rg-pass2" placeholder="Repeat password"></div>
+      <div id="rg-err" class="errmsg"></div>
+      <button class="btn bp bfw" onclick="doReg()">Create Free Account</button>
+      <div class="divline"><span>or</span></div>
+      <div class="alink">Have an account? <a onclick="go('p-login')">Login here</a></div>
+      <div class="alink" style="margin-top:10px"><a onclick="go('p-land')">← Back to Home</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DASHBOARD ══════════ -->
+<div id="p-dash" class="dboard">
+  <nav class="topnav">
+    <div class="logo" onclick="showTab('t-home')">Easy<span>Data</span></div>
+    <div class="nav-r">
+      <div class="bal-pill" onclick="showTab('t-topup')">💰 <span id="nav-bal">GH₵ 0.00</span></div>
+      <div class="av" id="u-av" onclick="showTab('t-profile')">ED</div>
+    </div>
+  </nav>
+
+  <div class="dlayout">
+    <!-- Sidebar (desktop only) -->
+    <aside class="dside">
+      <div class="sg">Main</div>
+      <div class="si on" id="si-home" onclick="showTab('t-home')"><span class="ic">🏠</span>Overview</div>
+      <div class="si" id="si-buy" onclick="showTab('t-buy')"><span class="ic">📦</span>Buy Data</div>
+      <div class="sg">Wallet</div>
+      <div class="si" id="si-topup" onclick="showTab('t-topup')"><span class="ic">💳</span>Top Up</div>
+      <div class="si" id="si-history" onclick="showTab('t-history')"><span class="ic">📋</span>Transactions <span class="bc" id="tx-bc">0</span></div>
+      <div class="sg">Account</div>
+      <div class="si" id="si-profile" onclick="showTab('t-profile')"><span class="ic">👤</span>Profile</div>
+      <div class="si" onclick="doOut()" style="margin-top:auto"><span class="ic">🚪</span>Logout</div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="dmain">
+
+      <!-- HOME -->
+      <div id="t-home" class="tab on">
+        <div class="ph"><h1 id="greet">Good day! 👋</h1><p id="greet2">Welcome back to EasyData.</p></div>
+        <div class="wcards">
+          <div class="wc pri">
+            <div class="wl">Wallet Balance</div>
+            <div class="wa2" id="bal-disp" style="font-family:var(--fh);font-size:28px;font-weight:800;color:var(--accent)">GH₵ 0.00</div>
+            <div class="ws">Available to spend</div>
+            <button class="btn bo bsm" style="margin-top:14px" onclick="showTab('t-topup')">+ Top Up</button>
+          </div>
+          <div class="wc">
+            <div class="wi">📦</div>
+            <div class="wl">Bundles Bought</div>
+            <div id="tot-b" style="font-family:var(--fh);font-size:26px;font-weight:800;color:var(--accent2)">0</div>
+          </div>
+          <div class="wc">
+            <div class="wi">💸</div>
+            <div class="wl">Total Spent</div>
+            <div id="tot-s" style="font-family:var(--fh);font-size:24px;font-weight:800;color:var(--accent3)">GH₵ 0.00</div>
+          </div>
+        </div>
+        <h3 style="font-family:var(--fh);font-weight:700;margin-bottom:14px">Quick Buy</h3>
+        <div class="ntabs">
+          <div class="ntab amtn" id="qt-mtn" onclick="setQN('mtn')"><div class="td" style="background:var(--mtn)"></div>MTN</div>
+          <div class="ntab" id="qt-tel" onclick="setQN('telecel')"><div class="td" style="background:var(--telecel)"></div>Telecel</div>
+          <div class="ntab" id="qt-at" onclick="setQN('at')"><div class="td" style="background:var(--at)"></div>AirtelTigo</div>
+        </div>
+        <div class="bgrid" id="qb-grid"></div>
+        <div style="margin-top:28px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h3 style="font-family:var(--fh);font-weight:700">Recent Transactions</h3>
+            <button class="btn bs bsm" onclick="showTab('t-history')">View All</button>
+          </div>
+          <div class="sc" style="padding:0;overflow:hidden">
+            <table class="txt"><thead><tr><th>Bundle</th><th>Number</th><th>Amount</th><th>Date</th></tr></thead>
+            <tbody id="rec-tx"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUY DATA -->
+      <div id="t-buy" class="tab">
+        <div class="ph"><h1>Buy Data Bundle 📦</h1><p>Choose a network and pick your bundle</p></div>
+        <div class="ntabs">
+          <div class="ntab amtn" id="bt-mtn" onclick="setBN('mtn')"><div class="td" style="background:var(--mtn)"></div>MTN</div>
+          <div class="ntab" id="bt-tel" onclick="setBN('telecel')"><div class="td" style="background:var(--telecel)"></div>Telecel</div>
+          <div class="ntab" id="bt-at" onclick="setBN('at')"><div class="td" style="background:var(--at)"></div>AirtelTigo</div>
+        </div>
+        <div class="bgrid" id="buy-grid"></div>
+      </div>
+
+      <!-- TOP UP -->
+      <div id="t-topup" class="tab">
+        <div class="ph"><h1>Top Up Wallet 💳</h1><p>Add funds to buy data bundles</p></div>
+        <h3 style="font-family:var(--fh);font-weight:700;margin-bottom:14px">Payment Method</h3>
+        <div class="tmgrid">
+          <div class="tm on" id="tm-momo" onclick="setTM('momo')"><div class="tmi">📱</div><div class="tmn">MTN MoMo</div><div class="tms">Mobile Money</div></div>
+          <div class="tm" id="tm-tel" onclick="setTM('tel')"><div class="tmi">📲</div><div class="tmn">Telecel Cash</div><div class="tms">Mobile Money</div></div>
+          <div class="tm" id="tm-at" onclick="setTM('at')"><div class="tmi">💳</div><div class="tmn">AirtelTigo Money</div><div class="tms">Mobile Money</div></div>
+        </div>
+        <div class="sc topup-form-wrap" style="max-width:480px">
+          <h3 style="font-family:var(--fh);font-weight:700;margin-bottom:18px">Enter Amount</h3>
+          <div class="chips">
+            <div class="chip" onclick="setAmt(5)">GH₵ 5</div>
+            <div class="chip" onclick="setAmt(10)">GH₵ 10</div>
+            <div class="chip" onclick="setAmt(20)">GH₵ 20</div>
+            <div class="chip" onclick="setAmt(50)">GH₵ 50</div>
+            <div class="chip" onclick="setAmt(100)">GH₵ 100</div>
+          </div>
+          <div class="fg"><label>Amount (GH₵)</label><input type="number" id="tu-amt" placeholder="Enter amount" min="1"></div>
+          <div class="fg"><label>MoMo Number</label><input type="tel" id="tu-phone" placeholder="0241234567" maxlength="10"></div>
+          <button class="btn bp bfw" onclick="doTopup()">💳 Fund Wallet</button>
+          <p style="margin-top:14px;font-size:12px;color:var(--muted);text-align:center">Need help? <a href="https://wa.me/233536426562" target="_blank" style="color:var(--accent)">WhatsApp: 0536 426 562</a></p>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div id="t-history" class="tab">
+        <div class="ph"><h1>Transaction History 📋</h1><p>All purchases and top-ups</p></div>
+        <div class="sc" style="padding:0;overflow:hidden">
+          <table class="txt"><thead><tr><th>Type</th><th>Details</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="all-tx"></tbody></table>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div id="t-profile" class="tab">
+        <div class="ph"><h1>My Profile 👤</h1><p>Manage your account</p></div>
+        <div class="sc" style="max-width:460px">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px">
+            <div id="pr-av" style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-weight:800;font-size:22px;color:var(--bg)">ED</div>
+            <div><div id="pr-name" style="font-family:var(--fh);font-size:18px;font-weight:700">—</div><div id="pr-phone" style="color:var(--muted);font-size:13px">—</div></div>
+          </div>
+          <div class="fg"><label>Full Name</label><input type="text" id="ed-name"></div>
+          <div class="fg"><label>Phone</label><input type="tel" id="ed-phone" readonly style="opacity:.5;cursor:not-allowed"></div>
+          <button class="btn bp bsm" onclick="savePr()">Save Changes</button>
+          <div style="margin-top:28px;padding-top:24px;border-top:1px solid var(--border)">
+            <h3 style="font-family:var(--fh);font-weight:700;margin-bottom:16px">Change Password</h3>
+            <div class="fg"><label>Current Password</label><input type="password" id="cp-cur"></div>
+            <div class="fg"><label>New Password</label><input type="password" id="cp-new"></div>
+            <button class="btn bs bsm" onclick="chgPass()">Update Password</button>
+          </div>
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+            <button class="btn bs bsm" onclick="doOut()" style="color:#ff6b6b;border-color:rgba(255,107,107,.2)">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Mobile bottom nav -->
+  <nav class="botnav">
+    <div class="bnrow">
+      <div class="bni on" id="bn-home" onclick="showTab('t-home')"><div class="ic">🏠</div>Home</div>
+      <div class="bni" id="bn-buy" onclick="showTab('t-buy')"><div class="ic">📦</div>Buy Data</div>
+      <div class="bni" id="bn-topup" onclick="showTab('t-topup')"><div class="ic">💳</div>Top Up</div>
+      <div class="bni" id="bn-history" onclick="showTab('t-history')"><div class="ic">📋</div>History</div>
+      <div class="bni" id="bn-profile" onclick="showTab('t-profile')"><div class="ic">👤</div>Profile</div>
+    </div>
+  </nav>
+</div>
+
+<!-- Buy Modal -->
+<div class="mover" id="m-buy">
+  <div class="modal">
+    <div class="mcls" onclick="closeM('m-buy')">✕</div>
+    <h2>Confirm Purchase 📦</h2>
+    <p>Review your bundle before confirming.</p>
+    <div class="msum" id="m-sum"></div>
+    <div class="fg"><label>Recipient Number</label><input type="tel" id="m-recip" placeholder="0241234567" maxlength="10"></div>
+    <div id="m-err" class="errmsg"></div>
+    <button class="btn bp bfw" id="m-btn" onclick="confirmBuy()">✅ Confirm & Buy</button>
+  </div>
+</div>
+
+<!-- Topup Success Modal -->
+<div class="mover" id="m-topup">
+  <div class="modal">
+    <div class="mcls" onclick="closeM('m-topup')">✕</div>
+    <h2>Top Up Successful 🎉</h2>
+    <p>Your wallet has been funded.</p>
+    <div class="msum" id="m-tsum"></div>
+    <button class="btn bp bfw" onclick="closeM('m-topup');showTab('t-buy')">Buy Data Now →</button>
+  </div>
+</div>
+
+<!-- CDN scripts at bottom of body -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+/* ── CONFIG ──────────────────────────────────────────── */
+var SUPA_URL = 'https://acvvgkbbodyweqtndgzd.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdnZna2Jib2R5d2VxdG5kZ3pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzEyNjYsImV4cCI6MjA4OTg0NzI2Nn0.80xmBIX8FPy6h0NBkYG7_Duf9C6sTsjjtEMKcw9YHI4';
+var PS_KEY  = 'pk_live_e2607461ba8747d4020aa028cfcaec16ef8b4f0d';
+var sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+/* ── STATE ───────────────────────────────────────────── */
+var CU = null; // current user
+var CB = null; // current bundle
+var QN = 'mtn'; // quick net
+var BN = 'mtn'; // buy net
+var TM = 'momo'; // topup method
+
+/* ── BUNDLES ─────────────────────────────────────────── */
+var BD = {
+  mtn:[
+    {id:'m1', sz:'1GB',   vl:'30 Days', pr:4.50,  hot:false},
+    {id:'m2', sz:'2GB',   vl:'30 Days', pr:8.80,  hot:false},
+    {id:'m3', sz:'3GB',   vl:'30 Days', pr:13.00, hot:false},
+    {id:'m4', sz:'4GB',   vl:'30 Days', pr:17.50, hot:false},
+    {id:'m5', sz:'5GB',   vl:'30 Days', pr:22.50, hot:true},
+    {id:'m6', sz:'6GB',   vl:'30 Days', pr:27.50, hot:false},
+    {id:'m7', sz:'7GB',   vl:'30 Days', pr:37.70, hot:false},
+    {id:'m8', sz:'8GB',   vl:'30 Days', pr:38.00, hot:false},
+    {id:'m9', sz:'10GB',  vl:'30 Days', pr:41.00, hot:true},
+    {id:'m10',sz:'12GB',  vl:'30 Days', pr:55.00, hot:false},
+    {id:'m11',sz:'15GB',  vl:'30 Days', pr:63.00, hot:false},
+    {id:'m12',sz:'20GB',  vl:'30 Days', pr:82.00, hot:true},
+    {id:'m13',sz:'25GB',  vl:'30 Days', pr:101.50,hot:false},
+    {id:'m14',sz:'30GB',  vl:'30 Days', pr:122.00,hot:false},
+    {id:'m15',sz:'40GB',  vl:'30 Days', pr:162.00,hot:false},
+    {id:'m16',sz:'50GB',  vl:'30 Days', pr:196.00,hot:false},
+    {id:'m17',sz:'100GB', vl:'30 Days', pr:390.00,hot:false}
+  ],
+  telecel:[
+    {id:'t1', sz:'1GB',  vl:'30 Days', pr:6.50,  hot:false},
+    {id:'t2', sz:'2GB',  vl:'30 Days', pr:10.50, hot:false},
+    {id:'t3', sz:'3GB',  vl:'30 Days', pr:15.00, hot:false},
+    {id:'t4', sz:'4GB',  vl:'30 Days', pr:18.00, hot:false},
+    {id:'t5', sz:'5GB',  vl:'30 Days', pr:21.00, hot:true},
+    {id:'t6', sz:'10GB', vl:'30 Days', pr:41.00, hot:true},
+    {id:'t7', sz:'15GB', vl:'30 Days', pr:60.00, hot:false},
+    {id:'t8', sz:'20GB', vl:'30 Days', pr:77.00, hot:false},
+    {id:'t9', sz:'25GB', vl:'30 Days', pr:97.00, hot:false},
+    {id:'t10',sz:'30GB', vl:'30 Days', pr:114.00,hot:false},
+    {id:'t11',sz:'40GB', vl:'30 Days', pr:149.00,hot:false},
+    {id:'t12',sz:'50GB', vl:'30 Days', pr:186.00,hot:false}
+  ],
+  at:[
+    {id:'a1', sz:'30GB',  vl:'30 Days', pr:70.00, hot:false},
+    {id:'a2', sz:'40GB',  vl:'30 Days', pr:90.00, hot:false},
+    {id:'a3', sz:'50GB',  vl:'30 Days', pr:100.00,hot:true},
+    {id:'a4', sz:'60GB',  vl:'30 Days', pr:130.00,hot:false},
+    {id:'a5', sz:'80GB',  vl:'30 Days', pr:160.00,hot:false},
+    {id:'a6', sz:'100GB', vl:'30 Days', pr:198.00,hot:true},
+    {id:'a7', sz:'200GB', vl:'30 Days', pr:330.00,hot:false}
+  ]
+};
+var NN = {mtn:'MTN Ghana',telecel:'Telecel',at:'AirtelTigo'};
+
+/* ── NAVIGATION ──────────────────────────────────────── */
+function go(id){
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});
+  var el = document.getElementById(id);
+  if(el) el.classList.add('on');
+  window.scrollTo(0,0);
+}
+
+function showDash(){
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on')});
+  document.getElementById('p-dash').classList.add('on');
+  window.scrollTo(0,0);
+}
+
+function showTab(id){
+  // Hide all tabs
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});
+  // Show target tab
+  var el = document.getElementById(id);
+  if(el) el.classList.add('on');
+  // Update sidebar
+  document.querySelectorAll('.si').forEach(function(i){i.classList.remove('on')});
+  var map = {'t-home':'si-home','t-buy':'si-buy','t-topup':'si-topup','t-history':'si-history','t-profile':'si-profile'};
+  var si = document.getElementById(map[id]);
+  if(si) si.classList.add('on');
+  // Update bottom nav
+  document.querySelectorAll('.bni').forEach(function(i){i.classList.remove('on')});
+  var bmap = {'t-home':'bn-home','t-buy':'bn-buy','t-topup':'bn-topup','t-history':'bn-history','t-profile':'bn-profile'};
+  var bi = document.getElementById(bmap[id]);
+  if(bi) bi.classList.add('on');
+  // Load data for the tab
+  if(id==='t-history') loadTx();
+  if(id==='t-profile') renderProfile();
+  window.scrollTo(0,0);
+}
+
+/* ── HELPERS ─────────────────────────────────────────── */
+function p2e(p){ return p.trim()+'@easydata.app'; }
+function fmt(n){ return 'GH\u20B5 '+(n||0).toFixed(2); }
+function fmtDate(d){ return new Date(d).toLocaleDateString('en-GH',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtShort(d){ return new Date(d).toLocaleDateString('en-GH',{day:'numeric',month:'short'}); }
+function showE(id,msg){ var e=document.getElementById(id); e.textContent=msg; e.style.display='block'; }
+function hideE(id){ var e=document.getElementById(id); e.style.display='none'; }
+function btnLoad(id,msg){ var b=document.getElementById(id); b.disabled=true; b.innerHTML='<span class="spinner"></span> '+msg; }
+function btnRdy(id,lbl){ var b=document.getElementById(id); b.disabled=false; b.textContent=lbl; }
+
+function toast(msg,type){
+  var icons={ok:'✅',er:'❌',in:'ℹ️'};
+  var el=document.createElement('div');
+  el.className='tk '+(type||'in');
+  el.innerHTML='<span class="ti">'+(icons[type]||'ℹ️')+'</span><span class="tm2">'+msg+'</span>';
+  document.getElementById('toast').appendChild(el);
+  setTimeout(function(){ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(function(){el.remove()},300); },3000);
+}
+
+function updBal(){
+  var b=fmt(CU.balance);
+  document.getElementById('nav-bal').textContent=b;
+  document.getElementById('bal-disp').textContent=b;
+}
+
+function updStats(){
+  var txs=CU.transactions||[];
+  var buys=txs.filter(function(t){return t.type==='purchase'});
+  document.getElementById('tot-b').textContent=buys.length;
+  var spent=buys.reduce(function(s,t){return s+(t.amount||0)},0);
+  document.getElementById('tot-s').textContent=fmt(spent);
+  document.getElementById('tx-bc').textContent=txs.length;
+}
+
+/* ── AUTH ────────────────────────────────────────────── */
+async function doLogin(){
+  var phone=document.getElementById('li-phone').value.trim();
+  var pass=document.getElementById('li-pass').value;
+  hideE('li-err');
+  if(!phone||!pass){showE('li-err','Please fill all fields.');return;}
+  if(phone.length<10){showE('li-err','Enter a valid 10-digit phone number.');return;}
+  var btn=document.querySelector('#p-login .btn.bp');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Logging in…'; }
+  try{
+    var r=await sb.auth.signInWithPassword({email:p2e(phone),password:pass});
+    if(r.error){if(btn){btn.disabled=false;btn.textContent='Login to Account';}showE('li-err','Incorrect phone or password.');return;}
+    var pr=await sb.from('profiles').select('*').eq('id',r.data.user.id).single();
+    if(pr.error){
+      await sb.from('profiles').upsert({id:r.data.user.id,name:phone,phone:phone,balance:0});
+      pr=await sb.from('profiles').select('*').eq('id',r.data.user.id).single();
+    }
+    CU=Object.assign({},pr.data,{transactions:[]});
+    if(btn){btn.disabled=false;btn.textContent='Login to Account';}
+    initDash();
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Login to Account';}
+    showE('li-err',e.message||'Login failed. Try again.');
+    console.error('Login error:',e);
+  }
+}
+
+async function doReg(){
+  var name=document.getElementById('rg-name').value.trim();
+  var phone=document.getElementById('rg-phone').value.trim();
+  var pass=document.getElementById('rg-pass').value;
+  var pass2=document.getElementById('rg-pass2').value;
+  hideE('rg-err');
+  if(!name||!phone||!pass){showE('rg-err','Please fill all required fields.');return;}
+  if(phone.length<10){showE('rg-err','Enter a valid 10-digit phone number.');return;}
+  if(pass.length<6){showE('rg-err','Password must be at least 6 characters.');return;}
+  if(pass!==pass2){showE('rg-err','Passwords do not match.');return;}
+  var btn=document.querySelector('#p-reg .btn.bp');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Creating account\u2026';
+  try{
+    var r=await sb.auth.signUp({email:p2e(phone),password:pass});
+    if(r.error){
+      btn.disabled=false;btn.textContent='Create Free Account';
+      var m=r.error.message||'';
+      showE('rg-err',m.toLowerCase().includes('already')?'Number already registered. Please login.':'Sign up failed: '+m);
+      return;
+    }
+    if(!r.data||!r.data.user){
+      btn.disabled=false;btn.textContent='Create Free Account';
+      showE('rg-err','No account returned. Make sure email confirmation is OFF in Supabase.');
+      return;
+    }
+    // Sign in to get active session
+    var si=await sb.auth.signInWithPassword({email:p2e(phone),password:pass});
+    if(si.error){
+      btn.disabled=false;btn.textContent='Create Free Account';
+      showE('rg-err','Account created! Please go to Login.');
+      return;
+    }
+    // Save profile
+    var up=await sb.from('profiles').upsert({id:r.data.user.id,name:name,phone:phone,balance:0});
+    if(up.error){
+      btn.disabled=false;btn.textContent='Create Free Account';
+      showE('rg-err','Profile save failed: '+up.error.message);
+      return;
+    }
+    CU={id:r.data.user.id,name:name,phone:phone,balance:0,transactions:[]};
+    btn.disabled=false;btn.textContent='Create Free Account';
+    toast('Welcome to EasyData! \uD83C\uDF89','ok');
+    initDash();
+  }catch(e){
+    btn.disabled=false;btn.textContent='Create Free Account';
+    showE('rg-err',e.message||'Unexpected error. Try again.');
+    console.error('Reg error:',e);
+  }
+}
+
+async function doOut(){
+  await sb.auth.signOut();
+  CU=null;
+  toast('Logged out.','in');
+  go('p-land');
+}
+
+/* ── DASHBOARD INIT ──────────────────────────────────── */
+function initDash(){
+  if(!CU) return;
+  var h=new Date().getHours();
+  var g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+  document.getElementById('greet').textContent=g+', '+CU.name.split(' ')[0]+'! \uD83D\uDC4B';
+  var ini=CU.name.split(' ').map(function(n){return n[0]}).join('').substring(0,2).toUpperCase();
+  document.getElementById('u-av').textContent=ini;
+  document.getElementById('pr-av').textContent=ini;
+  updBal();
+  renderBundles('mtn','qb-grid',true);
+  renderBundles('mtn','buy-grid',false);
+  showDash();
+  showTab('t-home');
+  loadTx();
+}
+
+/* ── BUNDLES ─────────────────────────────────────────── */
+function renderBundles(net,cid,quick){
+  var c=document.getElementById(cid);
+  if(!c) return;
+  var list=BD[net]||[];
+  if(quick) list=list.slice(0,4);
+  c.innerHTML=list.map(function(b){
+    return '<div class="bcard '+net+(b.hot?' pop':'')+'">'
+      +'<div class="bnbadge '+net+'">'+NN[net]+'</div>'
+      +'<div class="bsz">'+b.sz+'</div>'
+      +'<div class="bval">Valid '+b.vl+'</div>'
+      +'<div class="bpr">'+fmt(b.pr)+' <span>/ bundle</span></div>'
+      +'<button class="bbtn '+net+'" onclick="openBuy(\''+net+'\',\''+b.id+'\')">Buy Now \u2192</button>'
+      +'</div>';
+  }).join('');
+}
+
+function setQN(net){
+  QN=net;
+  ['mtn','tel','at'].forEach(function(k){
+    var id='qt-'+(k==='at'?'at':k==='tel'?'tel':'mtn');
+    var el=document.getElementById('qt-'+k);
+    if(el) el.className='ntab';
+  });
+  document.getElementById('qt-mtn').className='ntab';
+  document.getElementById('qt-tel').className='ntab';
+  document.getElementById('qt-at').className='ntab';
+  document.getElementById('qt-'+net).className='ntab a'+net;
+  renderBundles(net,'qb-grid',true);
+}
+
+function setBN(net){
+  BN=net;
+  document.getElementById('bt-mtn').className='ntab';
+  document.getElementById('bt-tel').className='ntab';
+  document.getElementById('bt-at').className='ntab';
+  document.getElementById('bt-'+net).className='ntab a'+net;
+  renderBundles(net,'buy-grid',false);
+}
+
+/* ── BUY ─────────────────────────────────────────────── */
+function openBuy(net,bid){
+  var b=(BD[net]||[]).filter(function(x){return x.id===bid})[0];
+  if(!b) return;
+  CB={net:net,id:bid,sz:b.sz,vl:b.vl,pr:b.pr};
+  document.getElementById('m-sum').innerHTML=
+    '<div class="mrow"><div class="mk">Network</div><div class="mv">'+NN[net]+'</div></div>'
+    +'<div class="mrow"><div class="mk">Bundle</div><div class="mv">'+b.sz+'</div></div>'
+    +'<div class="mrow"><div class="mk">Validity</div><div class="mv">'+b.vl+'</div></div>'
+    +'<div class="mrow"><div class="mk">Price</div><div class="mv ac">'+fmt(b.pr)+'</div></div>'
+    +'<div class="mrow"><div class="mk">Your Balance</div><div class="mv">'+fmt(CU.balance)+'</div></div>';
+  document.getElementById('m-recip').value=CU.phone;
+  document.getElementById('m-btn').disabled=false;
+  document.getElementById('m-btn').textContent='\u2705 Confirm & Buy';
+  hideE('m-err');
+  openM('m-buy');
+}
+
+async function confirmBuy(){
+  var recip=document.getElementById('m-recip').value.trim();
+  hideE('m-err');
+  if(!recip||recip.length<10){showE('m-err','Enter a valid 10-digit number.');return;}
+  if((CU.balance||0)<CB.pr){showE('m-err','Insufficient balance. Need '+fmt(CB.pr)+', have '+fmt(CU.balance)+'.');return;}
+  var btn=document.getElementById('m-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Processing\u2026';
+  try{
+    var nb=(CU.balance||0)-CB.pr;
+    var r1=await sb.from('profiles').update({balance:nb}).eq('id',CU.id);
+    if(r1.error) throw r1.error;
+    var r2=await sb.from('transactions').insert({user_id:CU.id,type:'purchase',network:CB.net,size:CB.sz,validity:CB.vl,amount:CB.pr,recipient:recip,status:'success'});
+    if(r2.error) throw r2.error;
+    CU.balance=nb;
+    if(!CU.transactions) CU.transactions=[];
+    CU.transactions.unshift({type:'purchase',network:CB.net,size:CB.sz,validity:CB.vl,amount:CB.pr,recipient:recip,status:'success',date:new Date().toISOString()});
+    closeM('m-buy');
+    updBal();updStats();
+    renderBundles(QN,'qb-grid',true);
+    renderRecent();
+    toast('\u2705 '+CB.sz+' data sent to '+recip+'!','ok');
+    showTab('t-home');
+  }catch(e){
+    showE('m-err','Purchase failed: '+e.message);
+  }finally{
+    btn.disabled=false;btn.textContent='\u2705 Confirm & Buy';
+  }
+}
+
+/* ── TOPUP ───────────────────────────────────────────── */
+function setTM(m){
+  TM=m;
+  ['momo','tel','at'].forEach(function(k){
+    var el=document.getElementById('tm-'+k);
+    if(el) el.classList.remove('on');
+  });
+  document.getElementById('tm-'+m).classList.add('on');
+}
+
+function setAmt(v){
+  document.getElementById('tu-amt').value=v;
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.classList.toggle('on',c.textContent.includes(v));
+  });
+}
+
+function doTopup(){
+  var amt=parseFloat(document.getElementById('tu-amt').value);
+  var phone=document.getElementById('tu-phone').value.trim();
+  if(!amt||amt<1){toast('Enter a valid amount (min GH\u20B5 1).','er');return;}
+  if(!phone||phone.length<10){toast('Enter a valid 10-digit MoMo number.','er');return;}
+  if(!window.PaystackPop){toast('Payment system not ready. Refresh page.','er');return;}
+  var mnames={momo:'MTN MoMo',tel:'Telecel Cash',at:'AirtelTigo Money'};
+  var ref='ED_'+Date.now();
+  var h=window.PaystackPop.setup({
+    key:PS_KEY,
+    email:p2e(CU.phone),
+    amount:Math.round(amt*100),
+    currency:'GHS',
+    ref:ref,
+    callback:function(res){
+      if(res.status==='success') afterTopup(amt,phone,mnames[TM],res.reference||ref);
+      else toast('Payment not completed.','er');
+    },
+    onClose:function(){toast('Payment window closed.','in');}
+  });
+  h.openIframe();
+}
+
+async function afterTopup(amt,phone,mname,ref){
+  try{
+    var nb=(CU.balance||0)+amt;
+    var r1=await sb.from('profiles').update({balance:nb}).eq('id',CU.id);
+    if(r1.error) throw r1.error;
+    var r2=await sb.from('transactions').insert({user_id:CU.id,type:'topup',method:mname,phone:phone,amount:amt,reference:ref,status:'success'});
+    if(r2.error) throw r2.error;
+    CU.balance=nb;
+    if(!CU.transactions) CU.transactions=[];
+    CU.transactions.unshift({type:'topup',method:mname,phone:phone,amount:amt,status:'success',date:new Date().toISOString()});
+    updBal();updStats();
+    document.getElementById('tu-amt').value='';
+    document.getElementById('tu-phone').value='';
+    document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('on')});
+    document.getElementById('m-tsum').innerHTML=
+      '<div class="mrow"><div class="mk">Method</div><div class="mv">'+mname+'</div></div>'
+      +'<div class="mrow"><div class="mk">Amount</div><div class="mv ac">'+fmt(amt)+'</div></div>'
+      +'<div class="mrow"><div class="mk">Reference</div><div class="mv" style="font-size:11px">'+ref+'</div></div>'
+      +'<div class="mrow"><div class="mk">New Balance</div><div class="mv ac">'+fmt(nb)+'</div></div>';
+    openM('m-topup');
+  }catch(e){
+    toast('Payment received! Contact support with ref: '+ref,'er');
+  }
+}
+
+/* ── TRANSACTIONS ────────────────────────────────────── */
+async function loadTx(){
+  if(!CU) return;
+  try{
+    var r=await sb.from('transactions').select('*').eq('user_id',CU.id).order('created_at',{ascending:false});
+    if(!r.error) CU.transactions=(r.data||[]).map(function(t){return Object.assign({},t,{date:t.created_at})});
+  }catch(e){}
+  renderTx();
+  updStats();
+  renderRecent();
+}
+
+function renderTx(){
+  var txs=CU&&CU.transactions?CU.transactions:[];
+  var b=document.getElementById('all-tx');
+  if(!txs.length){b.innerHTML='<tr><td colspan="5" style="text-align:center;padding:48px;color:var(--muted)">\uD83D\uDCED No transactions yet</td></tr>';return;}
+  b.innerHTML=txs.map(function(t){
+    if(t.type==='purchase') return '<tr>'
+      +'<td><span class="nd '+t.network+'"></span>'+(NN[t.network]||t.network)+'</td>'
+      +'<td>'+t.size+' \u00B7 '+t.validity+'<br><small style="color:var(--muted)">'+t.recipient+'</small></td>'
+      +'<td class="txa db">-'+fmt(t.amount)+'</td>'
+      +'<td><span class="txs ok">\u2713</span></td>'
+      +'<td style="color:var(--muted);font-size:11px">'+fmtDate(t.date)+'</td></tr>';
+    return '<tr>'
+      +'<td>\uD83D\uDCB3 Top Up</td>'
+      +'<td>'+(t.method||'\u2014')+'<br><small style="color:var(--muted)">'+(t.phone||'')+'</small></td>'
+      +'<td class="txa cr">+'+fmt(t.amount)+'</td>'
+      +'<td><span class="txs ok">\u2713</span></td>'
+      +'<td style="color:var(--muted);font-size:11px">'+fmtDate(t.date)+'</td></tr>';
+  }).join('');
+}
+
+function renderRecent(){
+  var txs=CU&&CU.transactions?CU.transactions.slice(0,5):[];
+  var b=document.getElementById('rec-tx');
+  if(!txs.length){b.innerHTML='<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">No transactions yet</td></tr>';return;}
+  b.innerHTML=txs.map(function(t){
+    if(t.type==='purchase') return '<tr>'
+      +'<td><span class="nd '+t.network+'"></span>'+t.size+' '+(NN[t.network]||'')+'</td>'
+      +'<td style="color:var(--muted)">'+t.recipient+'</td>'
+      +'<td class="txa db">-'+fmt(t.amount)+'</td>'
+      +'<td style="color:var(--muted);font-size:11px">'+fmtShort(t.date)+'</td></tr>';
+    return '<tr>'
+      +'<td>\uD83D\uDCB3 Top Up</td>'
+      +'<td style="color:var(--muted)">'+(t.phone||'')+'</td>'
+      +'<td class="txa cr">+'+fmt(t.amount)+'</td>'
+      +'<td style="color:var(--muted);font-size:11px">'+fmtShort(t.date)+'</td></tr>';
+  }).join('');
+}
+
+/* ── PROFILE ─────────────────────────────────────────── */
+function renderProfile(){
+  if(!CU) return;
+  document.getElementById('pr-name').textContent=CU.name;
+  document.getElementById('pr-phone').textContent=CU.phone;
+  document.getElementById('ed-name').value=CU.name;
+  document.getElementById('ed-phone').value=CU.phone;
+  var ini=CU.name.split(' ').map(function(n){return n[0]}).join('').substring(0,2).toUpperCase();
+  document.getElementById('pr-av').textContent=ini;
+}
+
+async function savePr(){
+  var name=document.getElementById('ed-name').value.trim();
+  if(!name){toast('Name cannot be empty.','er');return;}
+  var btn=document.querySelector('#t-profile .btn.bp');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving\u2026';
+  try{
+    var r=await sb.from('profiles').update({name:name}).eq('id',CU.id);
+    if(r.error) throw r.error;
+    CU.name=name;
+    renderProfile();
+    var ini=name.split(' ').map(function(n){return n[0]}).join('').substring(0,2).toUpperCase();
+    document.getElementById('u-av').textContent=ini;
+    toast('Profile updated!','ok');
+  }catch(e){toast('Failed to save: '+e.message,'er');}
+  finally{btn.disabled=false;btn.textContent='Save Changes';}
+}
+
+async function chgPass(){
+  var cur=document.getElementById('cp-cur').value;
+  var nw=document.getElementById('cp-new').value;
+  if(!cur||!nw){toast('Fill both password fields.','er');return;}
+  if(nw.length<6){toast('New password must be at least 6 characters.','er');return;}
+  var v=await sb.auth.signInWithPassword({email:p2e(CU.phone),password:cur});
+  if(v.error){toast('Current password is incorrect.','er');return;}
+  var r=await sb.auth.updateUser({password:nw});
+  if(r.error){toast('Failed to update password.','er');return;}
+  document.getElementById('cp-cur').value='';
+  document.getElementById('cp-new').value='';
+  toast('Password updated!','ok');
+}
+
+/* ── MODALS ──────────────────────────────────────────── */
+function openM(id){document.getElementById(id).classList.add('on')}
+function closeM(id){document.getElementById(id).classList.remove('on')}
+document.querySelectorAll('.mover').forEach(function(el){
+  el.addEventListener('click',function(e){if(e.target===el) el.classList.remove('on')});
+});
+
+/* ── INIT ────────────────────────────────────────────── */
+(async function(){
+  try{
+    var r=await sb.auth.getSession();
+    if(r.data&&r.data.session){
+      var pr=await sb.from('profiles').select('*').eq('id',r.data.session.user.id).single();
+      if(!pr.error&&pr.data){
+        CU=Object.assign({},pr.data,{transactions:[]});
+        initDash();
+        return;
+      }
+    }
+  }catch(e){}
+  go('p-land');
+  document.getElementById('li-pass').addEventListener('keydown',function(e){if(e.key==='Enter') doLogin()});
+  document.getElementById('rg-pass2').addEventListener('keydown',function(e){if(e.key==='Enter') doReg()});
+})();
+</script>
+</body>
+</html>
