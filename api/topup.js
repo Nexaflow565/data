@@ -1,4 +1,4 @@
-// topup.js - updated for async processing and fast webhook response
+// api/topup.js - fully ready for Paystack webhook
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
@@ -7,14 +7,14 @@ const supabaseAdmin = createClient(
 );
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // Only allow POST requests
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Immediately respond 200 to Paystack to prevent webhook timeout
+  // Immediately respond 200 to Paystack to avoid webhook timeout
   res.status(200).json({ received: true });
 
   try {
+    // Extract data directly from webhook
     const { user_id, amount, method, phone, reference } = req.body;
 
     if (!user_id || !amount || amount <= 0) {
@@ -43,9 +43,7 @@ module.exports = async function handler(req, res) {
       .update({ balance: newBalance })
       .eq('id', user_id);
 
-    if (updateErr) {
-      console.error('Balance update failed:', updateErr.message);
-    }
+    if (updateErr) console.error('Balance update failed:', updateErr.message);
 
     // Record transaction
     const { error: txErr } = await supabaseAdmin
@@ -60,7 +58,7 @@ module.exports = async function handler(req, res) {
         status: 'success'
       });
 
-    if (txErr) console.error('TX insert failed:', txErr.message);
+    if (txErr) console.error('Transaction insert failed:', txErr.message);
 
     console.log(`Top-up completed for user ${user_id}: +${amount}`);
 
@@ -68,4 +66,3 @@ module.exports = async function handler(req, res) {
     console.error('Error processing top-up:', err.message);
   }
 };
-
