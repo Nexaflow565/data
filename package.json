@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "EasyData GH — Instant Data Bundle Platform",
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0"
