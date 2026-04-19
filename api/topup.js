@@ -1,14 +1,13 @@
 // api/topup.js
 const { createClient } = require('@supabase/supabase-js');
 
-// 1. Corrected Variable Names to match Vercel settings
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY 
+const supabase = createClient(
+  process.env.SUPABASE_URL, 
+  process.env.SUPABASE_SERVICE_KEY
 );
 
 module.exports = async function handler(req, res) {
-  // 2. Add CORS Headers (Prevents browser blocks)
+  // 1. Setup CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -17,55 +16,50 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // 3. Verify session token
-  const authHeader = req.headers['authorization'] || '';
-  const token = authHeader.replace('Bearer ', '').trim();
-  if (!token) return res.status(401).json({ error: 'No auth token' });
-
   try {
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: 'Invalid session' });
-
     const { user_id, amount, method, phone, reference } = req.body;
 
-    if (user.id !== user_id) return res.status(403).json({ error: 'Unauthorized' });
-    if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
-
-    // 4. Get current balance
-    const { data: profile, error: profileErr } = await supabaseAdmin
+    // A. Fetch current balance
+    const { data: profile, error: pErr } = await supabase
       .from('profiles')
       .select('balance')
       .eq('id', user_id)
       .single();
 
-    if (profileErr) throw new Error('Could not fetch profile');
+    if (pErr || !profile) {
+       return res.status(404).json({ error: "User not found" });
+    }
 
-    const currentBalance = parseFloat(profile.balance || 0);
-    const newBalance = parseFloat((currentBalance + amount).toFixed(2));
+    const newBalance = parseFloat(((profile.balance || 0) + amount).toFixed(2));
 
-    // 5. Update balance in database
-    const { error: updateErr } = await supabaseAdmin
+    // B. Update Profile
+    const { error: upErr } = await supabase
       .from('profiles')
       .update({ balance: newBalance })
       .eq('id', user_id);
 
-    if (updateErr) throw new Error('Balance update failed');
+    if (upErr) throw new Error("Balance update failed");
 
-    // 6. Record transaction (Matches your SQL columns)
-    await supabaseAdmin.from('transactions').insert({
+    // C. Log Transaction
+    await supabase.from('transactions').insert({
       user_id,
       type: 'topup',
+      amount,
       method: method || 'Paystack',
       phone: phone || '',
-      amount: amount,
-      order_ref: reference || `PAY-${Date.now()}`, // Changed 'reference' to 'order_ref'
+      order_ref: reference || `PAY-${Date.now()}`,
       status: 'success'
     });
 
-    return res.status(200).json({ success: true, new_balance: newBalance });
+    // D. CRITICAL: Send response and return to stop the function
+    return res.status(200).json({ 
+        success: true, 
+        new_balance: newBalance 
+    });
 
-  } catch (e) {
-    console.error('Topup API error:', e.message);
-    return res.status(500).json({ error: e.message });
+  } catch (err) {
+    console.error("Topup Error:", err.message);
+    // Ensure we send a response on error too so it doesn't hang
+    return res.status(500).json({ error: err.message });
   }
 };
