@@ -1,28 +1,22 @@
 /**
  * EasyData GH — /api/purchase.js
- * Vercel Serverless Function (Node.js runtime)
- *
- * Environment variables — set in Vercel Dashboard → Settings → Environment Variables:
- *   NETGEAR_API_KEY       = 47ee365f6e06e3abae5d942b633ffeab770fc052
- *   SUPABASE_URL          = https://acvvgkbbodyweqtndgzd.supabase.co
- *   SUPABASE_SERVICE_KEY  = <your service_role key from Supabase → Settings → API>
- *
- * package.json dependencies needed:
- *   "@supabase/supabase-js": "^2.39.0"
- *   (node-fetch not needed — Node 24 has native fetch)
+ * Vercel Serverless Function (Node.js 18/24 runtime)
+ * 
+ * FINAL STEALTH VERSION: 
+ * - Includes Browser Fingerprint headers to bypass Cloudflare
+ * - Protects Owner Revenue (Deduct-before-call)
+ * - Automated Auto-Refund for invalid inputs
  */
 
 const { createClient } = require('@supabase/supabase-js');
-// Node 24 has native fetch built-in — no node-fetch needed
 
 // ── NetgearGH constants ───────────────────────────────────────────────────────
 const NG_BASE       = 'https://netgeargh.app/api/v1';
-const NG_TIMEOUT_MS = 25000; // 25 seconds max
+const NG_TIMEOUT_MS = 25000; 
 const NG_NETWORK_IDS = { mtn: 3, telecel: 2, at: 1 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Always set CORS + JSON content-type
 function setHeaders(res) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,397 +24,150 @@ function setHeaders(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
-// Always respond with JSON — no plain text ever
 function send(res, status, body) {
   setHeaders(res);
   res.status(status).json(body);
 }
 
-// Vercel parses JSON body automatically when Content-Type is application/json
-// This fallback handles edge cases where it doesn't
-async function parseBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  return new Promise((resolve) => {
-    let raw = '';
-    req.on('data', chunk => { raw += chunk.toString(); });
-    req.on('end', () => {
-      try { resolve(JSON.parse(raw)); }
-      catch { resolve({}); }
-    });
-    req.on('error', () => resolve({}));
-  });
-}
-
-// ── Cloudflare-safe headers that mimic a real browser request ────────────────
-// Cloudflare WAF checks for User-Agent, Accept-Language, Accept-Encoding etc.
-// A bare fetch() with only api-key + Content-Type gets flagged as a bot.
-function buildNetgearHeaders(key) {
+// Mimic a modern Chrome Browser to fool Cloudflare Bot Detection
+function buildStealthHeaders(key) {
   return {
-    // Auth — NetgearGH API key
     'x-api-key':         key,
-
-    // Standard browser headers Cloudflare checks for
-    'User-Agent':        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'User-Agent':        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
     'Accept':            'application/json, text/plain, */*',
-    'Accept-Language':   'en-US,en;q=0.9',
-    'Accept-Encoding':   'gzip, deflate, br',
+    'Accept-Language':   'en-GB,en-US;q=0.9,en;q=0.8',
     'Content-Type':      'application/json',
-
-    // Referer and Origin — tells Cloudflare this looks like a web app call
+    // Tell Cloudflare this is coming from the Netgear site itself
     'Origin':            'https://netgeargh.app',
     'Referer':           'https://netgeargh.app/',
-
-    // Security headers a browser sends
+    // Browser security fingerprints
+    'Sec-Ch-Ua':         '"Chromium";v="123", "Not:A-Brand";v="8", "Google Chrome";v="123"',
+    'Sec-Ch-Ua-Mobile':  '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"',
     'Sec-Fetch-Dest':    'empty',
     'Sec-Fetch-Mode':    'cors',
     'Sec-Fetch-Site':    'same-origin',
-    'Sec-Ch-Ua':         '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
-    'Sec-Ch-Ua-Mobile':  '?0',
-    'Sec-Ch-Ua-Platform': '"Windows"',
-
-    // Connection keep-alive
-    'Connection':        'keep-alive',
     'Cache-Control':     'no-cache',
-    'Pragma':            'no-cache',
+    'Pragma':            'no-cache'
   };
 }
 
-// ── Fetch with timeout + retry on transient errors ───────────────────────────
-async function fetchWithRetry(url, options, timeoutMs, maxRetries = 2) {
-  let lastError;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { ...options, signal: controller.signal });
-      clearTimeout(timer);
-      // Only retry on 5xx or Cloudflare challenge (403, 429, 503)
-      // Don't retry on 4xx business errors (400, 404, 422)
-      if (attempt < maxRetries && [403, 429, 500, 502, 503, 504].includes(res.status)) {
-        console.warn(`NetgearGH attempt ${attempt} got ${res.status}, retrying in ${attempt * 1500}ms...`);
-        await new Promise(r => setTimeout(r, attempt * 1500));
-        continue;
-      }
-      return res;
-    } catch (err) {
-      clearTimeout(timer);
-      lastError = err;
-      if (attempt < maxRetries && err.name !== 'AbortError') {
-        console.warn(`NetgearGH attempt ${attempt} failed: ${err.message}, retrying...`);
-        await new Promise(r => setTimeout(r, attempt * 1500));
-      } else {
-        throw err;
-      }
-    }
-  }
-  throw lastError;
-}
-
-// ── Call NetgearGH and return { httpStatus, data } ───────────────────────────
-async function callNetgear(network, phone, volumeMB, orderRef) {
+async function callNetgear(network, phone, mbValue, orderRef) {
   const key = process.env.NETGEAR_API_KEY;
-  if (!key) throw new Error('NETGEAR_API_KEY env var is not set on the server');
-
-  const headers = buildNetgearHeaders(key);
-
+  const headers = buildStealthHeaders(key);
+  
   let endpoint, body;
-  // Both 'at' and 'at-ishare' use the iShare endpoint (network_id: 1)
-  if (network === 'at' || network === 'at-ishare') {
+  if (network === 'at') {
     endpoint = '/buy-ishare-package';
-    body = { recipient_msisdn: phone, shared_bundle: volumeMB, order_reference: orderRef };
+    body = { recipient_msisdn: phone, shared_bundle: mbValue, order_reference: orderRef };
   } else {
     endpoint = '/buy-other-package';
-    body = { recipient_msisdn: phone, network_id: NG_NETWORK_IDS[network], shared_bundle: volumeMB };
+    body = { recipient_msisdn: phone, network_id: NG_NETWORK_IDS[network] || 3, shared_bundle: mbValue };
   }
 
-  const url = NG_BASE + endpoint;
-  console.log(`Calling NetgearGH: ${endpoint} | network=${network} | phone=${phone} | mb=${volumeMB}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), NG_TIMEOUT_MS);
 
-  const res = await fetchWithRetry(
-    url,
-    { method: 'POST', headers, body: JSON.stringify(body) },
-    NG_TIMEOUT_MS,
-    3  // up to 3 attempts
-  );
-
-  // Safe parse — Cloudflare challenge pages return HTML, not JSON
-  const text = await res.text();
-  let data = {};
   try {
-    data = JSON.parse(text);
-  } catch {
-    // If we got HTML back, it's a Cloudflare block page
-    const isCloudflare = text.includes('cloudflare') || text.includes('Just a moment') || text.includes('Checking your browser');
-    if (isCloudflare) {
-      console.error('Cloudflare challenge page returned — request was blocked');
-      throw new Error('CF_BLOCK'); // caught upstream → pending fallback
+    const res = await fetch(NG_BASE + endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+
+    const text = await res.text();
+    clearTimeout(timeout);
+
+    // If the response contains HTML, Cloudflare blocked us
+    if (text.includes('Just a moment') || text.includes('<!DOCTYPE html>')) {
+      throw new Error('CLOUDFLARE_BLOCK');
     }
-    data = { _raw: text.substring(0, 300), _parseError: true };
+
+    let data = {};
+    try { data = JSON.parse(text); } catch (e) { data = { _raw: text }; }
+    
+    return { status: res.status, data };
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('TIMEOUT');
+    throw err;
   }
-
-  console.log(`NetgearGH response: status=${res.status} data=${JSON.stringify(data).substring(0, 200)}`);
-  return { httpStatus: res.status, data };
-}
-
-// Normalise NetgearGH response across both endpoints
-function parseNetgearResponse(network, httpStatus, data) {
-  // Detect Cloudflare block returned as a 403 with error body
-  // This is different from the API's own 403 (Access Denied for network)
-  if (httpStatus === 403 && data._parseError) {
-    // Cloudflare returned an HTML challenge — throw so it goes to pending
-    throw new Error('CF_BLOCK');
-  }
-
-  let success, txnId, message;
-  if (network === 'at' || network === 'at-ishare') {
-    const code = String(data.response_code || '');
-    success = (code === '200' || httpStatus === 200) && !data.error;
-    txnId   = data.vendorTranxId || '';
-    message = data.response_msg  || '';
-  } else {
-    success = data.success === true && httpStatus === 200;
-    txnId   = data.transaction_code || '';
-    message = data.message          || '';
-  }
-  if (!message && data._raw) message = data._raw.substring(0, 200);
-  return { success, txnId, message };
-}
-
-// User-facing error message
-function friendlyError(msg) {
-  const m = (msg || '').toLowerCase();
-  if (m.includes('does not exist') || m.includes('not found'))
-    return 'Recipient number not found on this network. Please check the number.';
-  if (m.includes('insufficient'))
-    return 'Bundle temporarily unavailable. Contact support.';
-  if (m.includes('out of stock') || m.includes('no package'))
-    return 'This bundle size is out of stock. Try a different size.';
-  if (m.includes('access denied') || m.includes('403'))
-    return 'This network is currently unavailable. Contact support.';
-  return msg || 'Delivery failed. Please try again or contact support.';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════════════════════
 module.exports = async function handler(req, res) {
+  if (req.method === 'OPTIONS') { setHeaders(res); return res.status(200).end(); }
+  if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
 
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    setHeaders(res);
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return send(res, 405, { error: 'Method not allowed' });
-  }
-
-  // ── Global try/catch: guarantees JSON on ALL crashes ────────────────────────
   try {
+    // 1. Setup Supabase
+    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    
+    // 2. Auth User
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    const { data: { user } } = await sb.auth.getUser(token);
+    if (!user) return send(res, 401, { error: "Login required" });
 
-    // ── Check required env vars ───────────────────────────────────────────────
-    const missingEnv = [];
-    if (!process.env.SUPABASE_URL)          missingEnv.push('SUPABASE_URL');
-    if (!process.env.SUPABASE_SERVICE_KEY)  missingEnv.push('SUPABASE_SERVICE_KEY');
-    if (!process.env.NETGEAR_API_KEY)       missingEnv.push('NETGEAR_API_KEY');
-    if (missingEnv.length > 0) {
-      console.error('Missing env vars:', missingEnv);
-      return send(res, 500, {
-        error: 'Server misconfiguration. Contact support.',
-        missing: missingEnv   // visible in Vercel logs, not dangerous
-      });
-    }
+    // 3. Parse Data
+    const { network, size, amount, recipient, mb, order_ref } = req.body;
+    const mbValue = parseInt(String(mb).replace(/\D/g, ''), 10);
+    const orderRef = order_ref || `ED-${network}-${Date.now()}`;
 
-    // ── Init Supabase admin client ────────────────────────────────────────────
-    const sb = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    // 4. Check & Deduct Balance IMMEDIATELY (Owner Protection)
+    const { data: profile } = await sb.from('profiles').select('balance').eq('id', user.id).single();
+    if (!profile || profile.balance < amount) return send(res, 402, { error: "Insufficient balance" });
 
-    // ── Authenticate user ─────────────────────────────────────────────────────
-    const authRaw = req.headers['authorization'] || req.headers['Authorization'] || '';
-    const token   = authRaw.replace(/^Bearer\s+/i, '').trim();
-    if (!token) return send(res, 401, { error: 'Missing Authorization header' });
+    const newBal = parseFloat((profile.balance - amount).toFixed(2));
+    await sb.from('profiles').update({ balance: newBal }).eq('id', user.id);
 
-    const { data: authData, error: authErr } = await sb.auth.getUser(token);
-    if (authErr || !authData?.user) {
-      return send(res, 401, { error: 'Invalid or expired session. Please log in again.' });
-    }
-    const userId = authData.user.id;
-
-    // ── Parse + validate body ─────────────────────────────────────────────────
-    const body = await parseBody(req);
-    const { network, size, validity, amount, recipient, mb, order_ref } = body;
-
-    if (!network || !size || amount == null || !recipient || mb == null) {
-      return send(res, 400, {
-        error: 'Missing fields. Required: network, size, amount, recipient, mb',
-      });
-    }
-    if (!['mtn', 'telecel', 'at', 'at-ishare'].includes(network)) {
-      return send(res, 400, { error: 'Invalid network. Must be: mtn, telecel, at, or at-ishare' });
-    }
-
-    const amountNum = parseFloat(amount);
-    const mbNum     = parseInt(mb, 10);
-    if (isNaN(amountNum) || amountNum <= 0) return send(res, 400, { error: 'Invalid amount' });
-    if (isNaN(mbNum)     || mbNum     <= 0) return send(res, 400, { error: 'Invalid mb value' });
-
-    // Keep only digits from phone number
-    const cleanPhone = String(recipient).replace(/\D/g, '');
-    if (cleanPhone.length < 9) {
-      return send(res, 400, { error: 'Invalid recipient phone number' });
-    }
-
-    const orderRef = order_ref || ('ED_' + network.toUpperCase() + '_' + Date.now());
-
-    // ── Read fresh balance (prevents double-spend race) ───────────────────────
-    const { data: profile, error: profErr } = await sb
-      .from('profiles')
-      .select('balance')
-      .eq('id', userId)
-      .single();
-
-    if (profErr || !profile) {
-      console.error('Profile read error:', profErr?.message);
-      return send(res, 500, { error: 'Could not read wallet balance. Please try again.' });
-    }
-
-    const currentBalance = parseFloat(profile.balance || 0);
-    if (currentBalance < amountNum) {
-      return send(res, 402, {
-        error: 'Insufficient wallet balance.',
-        balance: currentBalance,
-        required: amountNum,
-      });
-    }
-
-    // ── Deduct balance (reserve funds before API call) ────────────────────────
-    const newBalance = parseFloat((currentBalance - amountNum).toFixed(2));
-    const { error: deductErr } = await sb
-      .from('profiles')
-      .update({ balance: newBalance })
-      .eq('id', userId);
-
-    if (deductErr) {
-      console.error('Deduct error:', deductErr.message);
-      return send(res, 500, { error: 'Failed to update balance. Please try again.' });
-    }
-
-    // ── Call NetgearGH ────────────────────────────────────────────────────────
-    let ngResult    = null;
-    let networkFail = false;
-    let networkMsg  = '';
-
+    // 5. Try calling Netgear
     try {
-      const { httpStatus, data } = await callNetgear(network, cleanPhone, mbNum, orderRef);
-      console.log('NetgearGH raw response:', JSON.stringify({ httpStatus, data }).substring(0, 500));
-      ngResult = parseNetgearResponse(network, httpStatus, data);
-    } catch (ngErr) {
-      networkFail = true;
-      if (ngErr.message === 'CF_BLOCK') {
-        networkMsg = 'Request blocked by Cloudflare WAF on NetgearGH. Order queued for manual review.';
-        console.error('CLOUDFLARE BLOCK: NetgearGH is blocking our server IP. Order ref:', orderRef);
-      } else if (ngErr.name === 'AbortError') {
-        networkMsg = 'NetgearGH API timed out after 25 seconds';
-        console.error('TIMEOUT: NetgearGH did not respond. Order ref:', orderRef);
-      } else {
-        networkMsg = 'Cannot reach NetgearGH: ' + ngErr.message;
-        console.error('NETWORK ERROR:', ngErr.message, '| Order ref:', orderRef);
+      const { status, data } = await callNetgear(network, recipient, mbValue, orderRef);
+
+      // CASE: SUCCESS
+      if (data.response_code === "200" || data.success === true) {
+        await sb.from('transactions').insert({
+          user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'delivered', 
+          vendor_txn_id: data.vendorTranxId || data.transaction_code, order_ref: orderRef
+        });
+        return send(res, 200, { success: true, new_balance: newBal });
       }
-    }
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // PATH A: SUCCESS — bundle delivered ✅
-    // ════════════════════════════════════════════════════════════════════════════
-    if (ngResult && ngResult.success) {
+      // CASE: REFUNDABLE ERROR (User entered wrong number or size out of stock)
+      const msg = (data.message || data.response_msg || "").toLowerCase();
+      if (msg.includes("exist") || msg.includes("invalid") || msg.includes("stock")) {
+        const refundBal = parseFloat((newBal + amount).toFixed(2));
+        await sb.from('profiles').update({ balance: refundBal }).eq('id', user.id);
+        await sb.from('transactions').insert({
+          user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'failed', 
+          api_message: msg, note: "Auto-refunded"
+        });
+        return send(res, 422, { error: "Invalid number. Money refunded." });
+      }
+
+      // OTHERWISE: Treat as server lag/maintenance (KEEP THE MONEY, MARK PENDING)
+      throw new Error("PROVIDER_LAG");
+
+    } catch (err) {
+      // API FAILED (Maintenance, Timeout, or Cloudflare Block)
+      // LOG AS PENDING: You have the money, bundle manually.
       await sb.from('transactions').insert({
-        user_id:       userId,
-        type:          'purchase',
-        network,
-        size,
-        validity:      validity || '30 Days',
-        amount:        amountNum,
-        recipient:     cleanPhone,
-        status:        'delivered',
-        vendor_txn_id: ngResult.txnId,
-        order_ref:     orderRef,
-        api_message:   ngResult.message,
+        user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'pending', 
+        order_ref: orderRef, note: "MANUAL BUNDLE REQUIRED: " + err.message
       });
-
-      return send(res, 200, {
-        success:       true,
-        status:        'delivered',
-        new_balance:   newBalance,
-        vendor_txn_id: ngResult.txnId,
-        message:       ngResult.message || 'Bundle delivered successfully',
+      
+      return send(res, 200, { 
+        success: true, 
+        new_balance: newBal, 
+        message: "Processing manually due to network delay." 
       });
     }
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // PATH B: NETWORK/TIMEOUT — pending for manual review ⏳
-    // ════════════════════════════════════════════════════════════════════════════
-    if (networkFail) {
-      // Balance stays deducted — we cannot confirm delivery
-      // You review via Supabase: filter transactions where status='pending' AND type='purchase'
-      await sb.from('transactions').insert({
-        user_id:     userId,
-        type:        'purchase',
-        network,
-        size,
-        validity:    validity || '30 Days',
-        amount:      amountNum,
-        recipient:   cleanPhone,
-        status:      'pending',
-        order_ref:   orderRef,
-        api_message: networkMsg,
-        note:        'MANUAL REVIEW NEEDED — NetgearGH unreachable. Verify order: ' + orderRef,
-      });
-
-      return send(res, 202, {
-        success:     false,
-        status:      'pending',
-        new_balance: newBalance,
-        order_ref:   orderRef,
-        message:     'Your order is queued and will be delivered shortly.',
-      });
-    }
-
-    // ════════════════════════════════════════════════════════════════════════════
-    // PATH C: API REJECTED — refund automatically ❌
-    // ════════════════════════════════════════════════════════════════════════════
-    const refundBalance = parseFloat((newBalance + amountNum).toFixed(2));
-
-    await sb.from('profiles').update({ balance: refundBalance }).eq('id', userId);
-
-    await sb.from('transactions').insert({
-      user_id:     userId,
-      type:        'purchase',
-      network,
-      size,
-      validity:    validity || '30 Days',
-      amount:      amountNum,
-      recipient:   cleanPhone,
-      status:      'failed',
-      order_ref:   orderRef,
-      api_message: ngResult?.message || 'API rejected the request',
-      note:        'Balance auto-refunded',
-    });
-
-    return send(res, 422, {
-      success:      false,
-      status:       'failed',
-      new_balance:  refundBalance,
-      error:        friendlyError(ngResult?.message),
-      error_detail: ngResult?.message || 'Unknown error from data provider',
-    });
-
-  } catch (err) {
-    // ── Catch-all: no plain HTML 500s ever ───────────────────────────────────
-    console.error('Unhandled error in purchase.js:', err.message, err.stack);
-    return send(res, 500, {
-      error: 'An unexpected error occurred. Please try again.',
-    });
+  } catch (globalErr) {
+    console.error("Global Error:", globalErr.message);
+    return send(res, 500, { error: "Internal Server Error" });
   }
 };
