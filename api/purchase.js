@@ -1,8 +1,6 @@
 /**
  * EasyData GH — /api/purchase.js
- * SMART LOGIC VERSION: 
- * - Auto-Refunds on User Errors (Wrong Number)
- * - Captures & Holds money on Server Errors (502/HTML) for Manual Bundling
+ * DIAGNOSTIC VERSION: Logs the exact reason for the manual fallback.
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -36,21 +34,21 @@ module.exports = async function handler(req, res) {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) return res.status(401).json({ error: "Session expired" });
 
-    // 1. Balance Check
     const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
     if (!profile || profile.balance < amount) return res.status(402).json({ error: "Insufficient balance" });
 
-    // 2. DEDUCT IMMEDIATELY (Hold the money)
+    // DEDUCT IMMEDIATELY
     const newBal = parseFloat((profile.balance - amount).toFixed(2));
     await supabase.from('profiles').update({ balance: newBal }).eq('id', user.id);
 
-    // 3. CALL NETGEAR
     const endpoint = network === 'at' ? '/buy-ishare-package' : '/buy-other-package';
+    
+    // Some providers now require the reference on ALL endpoints after updates
     const providerBody = { 
         recipient_msisdn: recipient, 
         network_id: NG_NETWORK_IDS[network] || 3, 
         shared_bundle: mbValue, 
-        order_reference: orderRef 
+        order_reference: orderRef // Added to both just in case
     };
 
     try {
@@ -60,22 +58,24 @@ module.exports = async function handler(req, res) {
           'x-api-key': process.env.NETGEAR_API_KEY,
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
         },
         body: JSON.stringify(providerBody)
       });
 
       const text = await response.text();
       
-      // CHECK IF RESPONSE IS HTML (Cloudflare 502/Maintenance)
+      // DIAGNOSTIC LOG: This will tell us EXACTLY what happened
+      console.log(`DIAGNOSTIC - Status: ${response.status} | URL: ${endpoint}`);
+      console.log(`DIAGNOSTIC - Response Body: ${text.substring(0, 500)}`);
+
       if (text.includes('<!DOCTYPE html>') || text.includes('Just a moment')) {
-          throw new Error("PROVIDER_OFFLINE"); // Jump to catch block (Manual Fallback)
+          throw new Error("CLOUDFLARE_BLOCK_OR_502"); 
       }
 
       let result = {};
-      try { result = JSON.parse(text); } catch(e) { throw new Error("INVALID_JSON"); }
+      try { result = JSON.parse(text); } catch(e) { throw new Error("INVALID_JSON_FROM_NETGEAR"); }
 
-      // --- CASE A: SUCCESS ---
       if (result.response_code === "200" || result.success === true) {
         await supabase.from('transactions').insert({
           user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'delivered', 
@@ -84,9 +84,8 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ success: true, new_balance: newBal });
       } 
       
-      // --- CASE B: USER ERROR (Wrong Number/Out of Stock) -> REFUND ---
       const msg = (result.message || result.response_msg || "").toLowerCase();
-      if (msg.includes("exist") || msg.includes("invalid") || msg.includes("stock") || msg.includes("limit")) {
+      if (msg.includes("exist") || msg.includes("invalid") || msg.includes("stock")) {
         const refundBal = parseFloat((newBal + amount).toFixed(2));
         await supabase.from('profiles').update({ balance: refundBal }).eq('id', user.id);
         await supabase.from('transactions').insert({
@@ -96,26 +95,27 @@ module.exports = async function handler(req, res) {
         return res.status(422).json({ error: (result.message || "Invalid details") + ". Money refunded." });
       }
 
-      // --- CASE C: UNKNOWN REJECTION -> HOLD MONEY, MARK PENDING ---
-      throw new Error(result.message || "Unknown Rejection");
+      throw new Error(result.message || "Unknown Provider Error");
 
     } catch (apiErr) {
-      // --- MANUAL FALLBACK (SERVER DOWN / TIMEOUT / 502) ---
-      // We DO NOT refund here. We keep the money and log for you to bundle manually.
+      // LOG THE ACTUAL ERROR TO VERCEL
+      console.error("CATCH TRIGGERED BY:", apiErr.message);
+
       await supabase.from('transactions').insert({
         user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'pending', 
-        order_ref: orderRef, note: "MANUAL BUNDLE REQUIRED: " + apiErr.message
+        order_ref: orderRef, note: "MANUAL BUNDLE: " + apiErr.message
       });
 
       return res.status(200).json({ 
         success: true, 
         new_balance: newBal, 
-        message: "Order logged. Delivering manually due to system lag." 
+        message: "Processing manually due to network delay." 
       });
     }
 
   } catch (err) {
-    console.error("Global Error:", err.message);
+    console.error("GLOBAL CRASH:", err.message);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
