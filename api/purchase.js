@@ -1,8 +1,9 @@
 /**
  * EasyData GH — /api/purchase.js
- * STRICT API DOC VERSION:
- * - MTN/Telecel: Sends ONLY msisdn, network_id, and shared_bundle (Page 6 of Doc)
- * - AirtelTigo: Sends msisdn, shared_bundle, AND order_reference (Page 5 of Doc)
+ * FULL PAYLOAD VERSION: 
+ * - Sends 'order_reference' to ALL networks (ignores Page 6 of Doc to ensure stability)
+ * - Keeps clean MB volume for 10GB/2GB packages
+ * - Protects balance with Smart Logic
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -26,7 +27,7 @@ module.exports = async function handler(req, res) {
 
     const { network, size, amount, recipient, mb, order_ref } = body;
     
-    // Ensure mbValue is a clean number (e.g. 10000)
+    // Ensure 1GB becomes 1000, 10GB becomes 10000
     const mbValue = parseInt(String(mb || size || "0").replace(/\D/g, ''), 10);
     const orderRef = order_ref || `ED-${network.toUpperCase()}-${Date.now()}`;
 
@@ -42,27 +43,18 @@ module.exports = async function handler(req, res) {
     const newBal = parseFloat((profile.balance - amount).toFixed(2));
     await supabase.from('profiles').update({ balance: newBal }).eq('id', user.id);
 
-    // 2. CONSTRUCT REQUEST BASED ON API DOC PAGE 5 & 6
-    let endpoint = '';
-    let providerBody = {};
+    // 2. CONSTRUCT REQUEST
+    // We send order_reference to EVERYONE regardless of what Page 6 says.
+    const endpoint = network === 'at' ? '/buy-ishare-package' : '/buy-other-package';
+    const providerBody = { 
+        recipient_msisdn: recipient, 
+        shared_bundle: mbValue, 
+        order_reference: orderRef 
+    };
 
-    if (network === 'at') {
-      // --- AIRTELTIGO (Page 5) ---
-      endpoint = '/buy-ishare-package';
-      providerBody = { 
-          recipient_msisdn: recipient, 
-          shared_bundle: mbValue, 
-          order_reference: orderRef // Required for iShare
-      };
-    } else {
-      // --- MTN & TELECEL (Page 6) ---
-      endpoint = '/buy-other-package';
-      providerBody = { 
-          recipient_msisdn: recipient, 
-          network_id: NG_NETWORK_IDS[network] || 3, 
-          shared_bundle: mbValue 
-          // NO order_reference here as per Page 6
-      };
+    // Add network_id only for MTN/Telecel
+    if (network !== 'at') {
+        providerBody.network_id = NG_NETWORK_IDS[network] || 3;
     }
 
     try {
@@ -79,10 +71,9 @@ module.exports = async function handler(req, res) {
 
       const text = await response.text();
       let result = {};
-      try { result = JSON.parse(text); } catch(e) { throw new Error("PROVIDER_OFFLINE_HTML"); }
+      try { result = JSON.parse(text); } catch(e) { throw new Error("GATEWAY_502_OR_HTML"); }
 
-      // 3. HANDLE SUCCESS (Page 5 & 6)
-      // Doc shows response_code "200" for AT and success: true for Others
+      // 3. HANDLE SUCCESS
       if (result.response_code === "200" || result.success === true) {
         await supabase.from('transactions').insert({
           user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'delivered', 
@@ -91,20 +82,20 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ success: true, new_balance: newBal });
       } 
       
-      // 4. HANDLE REJECTIONS (Out of Stock / Invalid Number) -> AUTO REFUND
+      // 4. HANDLE REJECTIONS (Refund)
       const refundBal = parseFloat((newBal + amount).toFixed(2));
       await supabase.from('profiles').update({ balance: refundBal }).eq('id', user.id);
       await supabase.from('transactions').insert({
         user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'failed', 
         api_message: result.message || result.response_msg, note: "Auto-refunded"
       });
-      return res.status(422).json({ error: (result.message || result.response_msg || "Package unavailable") + ". Refunded." });
+      return res.status(422).json({ error: (result.message || "Package unavailable") + ". Refunded." });
 
     } catch (apiErr) {
-      // 5. HANDLE TIMEOUT/GATEWAY (Keep money, log for manual)
+      // 5. MANUAL FALLBACK (Lag)
       await supabase.from('transactions').insert({
         user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'pending', 
-        order_ref: orderRef, note: "MANUAL REQUIRED: " + apiErr.message
+        order_ref: orderRef, note: "MANUAL BUNDLE: " + apiErr.message
       });
       return res.status(200).json({ success: true, new_balance: newBal, message: "Manual delivery needed." });
     }
