@@ -1,15 +1,11 @@
 /**
  * EasyData GH — /api/purchase.js
- * FULL PAYLOAD VERSION: 
- * - Sends 'order_reference' to ALL networks (ignores Page 6 of Doc to ensure stability)
- * - Keeps clean MB volume for 10GB/2GB packages
- * - Protects balance with Smart Logic
+ * ABSOLUTE STRICT VERSION (Based on Doc Page 5 & 6)
  */
 
 const { createClient } = require('@supabase/supabase-js');
 
 const NG_BASE = 'https://netgeargh.app/api/v1';
-const NG_TIMEOUT_MS = 25000; 
 const NG_NETWORK_IDS = { mtn: 3, telecel: 2, at: 1 };
 
 module.exports = async function handler(req, res) {
@@ -27,34 +23,42 @@ module.exports = async function handler(req, res) {
 
     const { network, size, amount, recipient, mb, order_ref } = body;
     
-    // Ensure 1GB becomes 1000, 10GB becomes 10000
-    const mbValue = parseInt(String(mb || size || "0").replace(/\D/g, ''), 10);
-    const orderRef = order_ref || `ED-${network.toUpperCase()}-${Date.now()}`;
+    // Ensure Clean Number (No decimals, no text)
+    const mbValue = Math.floor(parseInt(String(mb || size || "0").replace(/\D/g, ''), 10));
+    const orderRef = order_ref || `ED-${Date.now()}`;
 
     const authHeader = req.headers.authorization || '';
     const token = authHeader.replace('Bearer ', '').trim();
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) return res.status(401).json({ error: "Session expired" });
 
-    // 1. Balance Check & Reservation
+    // 1. Balance Logic
     const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
     if (!profile || profile.balance < amount) return res.status(402).json({ error: "Insufficient balance" });
 
     const newBal = parseFloat((profile.balance - amount).toFixed(2));
     await supabase.from('profiles').update({ balance: newBal }).eq('id', user.id);
 
-    // 2. CONSTRUCT REQUEST
-    // We send order_reference to EVERYONE regardless of what Page 6 says.
-    const endpoint = network === 'at' ? '/buy-ishare-package' : '/buy-other-package';
-    const providerBody = { 
-        recipient_msisdn: recipient, 
-        shared_bundle: mbValue, 
-        order_reference: orderRef 
-    };
+    // 2. CONSTRUCT REQUESTS (STRICTLY BY THE BOOK)
+    let endpoint = '';
+    let providerBody = {};
 
-    // Add network_id only for MTN/Telecel
-    if (network !== 'at') {
-        providerBody.network_id = NG_NETWORK_IDS[network] || 3;
+    if (network === 'at') {
+      // AirtelTigo (Page 5): Needs msisdn, bundle, and reference
+      endpoint = '/buy-ishare-package';
+      providerBody = { 
+          recipient_msisdn: String(recipient), 
+          shared_bundle: mbValue, 
+          order_reference: String(orderRef) 
+      };
+    } else {
+      // MTN / Telecel (Page 6): Needs msisdn, network_id, and bundle (Reference NOT listed)
+      endpoint = '/buy-other-package';
+      providerBody = { 
+          recipient_msisdn: String(recipient), 
+          network_id: NG_NETWORK_IDS[network] || 3, 
+          shared_bundle: mbValue 
+      };
     }
 
     try {
@@ -63,43 +67,41 @@ module.exports = async function handler(req, res) {
         headers: {
           'x-api-key': process.env.NETGEAR_API_KEY,
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(providerBody)
       });
 
       const text = await response.text();
       let result = {};
-      try { result = JSON.parse(text); } catch(e) { throw new Error("GATEWAY_502_OR_HTML"); }
+      try { result = JSON.parse(text); } catch(e) { throw new Error("Netgear Gateway Error (502)"); }
 
-      // 3. HANDLE SUCCESS
       if (result.response_code === "200" || result.success === true) {
         await supabase.from('transactions').insert({
           user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'delivered', 
-          vendor_txn_id: result.vendorTranxId || result.transaction_code, order_ref: orderRef
+          vendor_txn_id: result.transaction_code || result.vendorTranxId, order_ref: orderRef
         });
         return res.status(200).json({ success: true, new_balance: newBal });
       } 
       
-      // 4. HANDLE REJECTIONS (Refund)
+      // Handle Rejection (Out of Stock, etc)
       const refundBal = parseFloat((newBal + amount).toFixed(2));
       await supabase.from('profiles').update({ balance: refundBal }).eq('id', user.id);
       await supabase.from('transactions').insert({
         user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'failed', 
         api_message: result.message || result.response_msg, note: "Auto-refunded"
       });
-      return res.status(422).json({ error: (result.message || "Package unavailable") + ". Refunded." });
+      return res.status(422).json({ error: (result.message || "Provider Error") + ". Money refunded." });
 
     } catch (apiErr) {
-      // 5. MANUAL FALLBACK (Lag)
+      // Log for Manual Bundle
       await supabase.from('transactions').insert({
         user_id: user.id, type: 'purchase', network, size, amount, recipient, status: 'pending', 
-        order_ref: orderRef, note: "MANUAL BUNDLE: " + apiErr.message
+        order_ref: orderRef, note: "API ERROR: " + apiErr.message
       });
       return res.status(200).json({ success: true, new_balance: newBal, message: "Manual delivery needed." });
     }
   } catch (err) {
-    return res.status(500).json({ error: "Internal Error" });
+    return res.status(500).json({ error: "System Error" });
   }
 };
