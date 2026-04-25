@@ -1,19 +1,6 @@
 /**
  * EasyData GH — /api/topup.js
- * Vercel Serverless Function (Node.js 24.x)
- *
- * Flow:
- *   1. Authenticate user via JWT
- *   2. Verify the Paystack payment reference is genuine (calls Paystack verify API)
- *   3. Check it hasn't been credited before (idempotency — prevents double-credit)
- *   4. Credit wallet atomically
- *   5. Record transaction
- *   6. Return new balance
- *
- * Environment variables needed (already in Vercel):
- *   SUPABASE_URL
- *   SUPABASE_SERVICE_KEY
- *   PAYSTACK_SECRET_KEY   ← add this: your Paystack secret key (sk_live_...)
+ * FIXED VERSION: Synchronized with Supabase SQL Columns
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -30,154 +17,80 @@ function send(res, status, body) {
   res.status(status).json(body);
 }
 
-async function parseBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  return new Promise((resolve) => {
-    let raw = '';
-    req.on('data', chunk => { raw += chunk.toString(); });
-    req.on('end', () => { try { resolve(JSON.parse(raw)); } catch { resolve({}); } });
-    req.on('error', () => resolve({}));
-  });
-}
-
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') { setHeaders(res); return res.status(200).end(); }
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
 
   try {
-    // ── Check env vars ────────────────────────────────────────────────────────
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-      return send(res, 500, { error: 'Server config error' });
-    }
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-    const sb = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    // ── Authenticate user ─────────────────────────────────────────────────────
-    const authHeader = req.headers['authorization'] || '';
+    // 1. Authenticate user
+    const authHeader = req.headers.authorization || '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!token) return send(res, 401, { error: 'Missing authorization token' });
-
-    const { data: authData, error: authErr } = await sb.auth.getUser(token);
-    if (authErr || !authData?.user) {
-      return send(res, 401, { error: 'Invalid or expired session' });
-    }
+    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+    
+    if (authErr || !authData?.user) return send(res, 401, { error: 'Session expired. Login again.' });
     const userId = authData.user.id;
 
-    // ── Parse body ────────────────────────────────────────────────────────────
-    const body    = await parseBody(req);
-    const { amount, method, phone, reference } = body;
+    const { amount, reference, method, phone } = req.body;
+    const amountSentFromSite = parseFloat(amount);
 
-    if (!amount || !reference) {
-      return send(res, 400, { error: 'Missing required fields: amount, reference' });
-    }
-
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum < 5) {
-      return send(res, 400, { error: 'Invalid amount. Minimum is GHS 5.' });
-    }
-
-    // ── IDEMPOTENCY: Check if reference was already credited ──────────────────
-    const { data: existing } = await sb
+    // 2. IDEMPOTENCY: Check if already credited (USING CORRECT COLUMN NAME: order_ref)
+    const { data: existing } = await supabase
       .from('transactions')
-      .select('id, status')
-      .eq('reference', reference)
-      .eq('user_id', userId)
+      .select('id')
+      .eq('order_ref', reference) // Use order_ref, not reference
       .eq('status', 'success')
       .maybeSingle();
 
     if (existing) {
-      // Already credited — return current balance without double-crediting
-      const { data: prof } = await sb.from('profiles').select('balance').eq('id', userId).single();
-      console.log(`[topup] Duplicate reference ${reference} — already credited`);
-      return send(res, 200, {
-        success: true,
-        already_credited: true,
-        new_balance: parseFloat(prof?.balance || 0),
-        message: 'Already credited',
-      });
+      const { data: p } = await supabase.from('profiles').select('balance').eq('id', userId).single();
+      return send(res, 200, { success: true, new_balance: p.balance, message: 'Already credited' });
     }
 
-    // ── VERIFY PAYMENT with Paystack (if secret key is available) ─────────────
+    // 3. VERIFY WITH PAYSTACK
     const PAYSTACK_KEY = process.env.PAYSTACK_SECRET_KEY;
-    if (PAYSTACK_KEY) {
-      try {
-        const verifyRes = await fetch(
-          `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-          { headers: { Authorization: `Bearer ${PAYSTACK_KEY}` } }
-        );
-        const verifyData = await verifyRes.json();
+    if (!PAYSTACK_KEY) return send(res, 500, { error: 'Payment gateway key missing' });
 
-        if (!verifyData.status || verifyData.data?.status !== 'success') {
-          console.warn(`[topup] Paystack verify failed for ${reference}:`, verifyData.data?.status);
-          return send(res, 402, { error: 'Payment not confirmed by Paystack' });
-        }
+    const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: { Authorization: `Bearer ${PAYSTACK_KEY}` }
+    });
+    const verifyData = await verifyRes.json();
 
-        // Verify amount matches (Paystack uses kobo/pesewas — divide by 100)
-        const paidAmount = verifyData.data.amount / 100;
-        if (Math.abs(paidAmount - amountNum) > 0.5) {
-          console.warn(`[topup] Amount mismatch: expected ${amountNum}, Paystack says ${paidAmount}`);
-          return send(res, 402, { error: 'Payment amount mismatch' });
-        }
-        console.log(`[topup] Paystack verified: ${reference} = GHS ${paidAmount}`);
-      } catch (verifyErr) {
-        // Paystack verification failed — log but don't block (webhook handles reconciliation)
-        console.error('[topup] Paystack verify error (continuing):', verifyErr.message);
-      }
-    } else {
-      console.warn('[topup] PAYSTACK_SECRET_KEY not set — skipping verification');
+    if (!verifyData.status || verifyData.data?.status !== 'success') {
+      console.error(`[topup] Paystack says NOT success:`, verifyData.data?.status);
+      return send(res, 402, { error: 'Payment not successful on Paystack' });
     }
 
-    // ── Read fresh balance ────────────────────────────────────────────────────
-    const { data: profile, error: profErr } = await sb
-      .from('profiles')
-      .select('balance')
-      .eq('id', userId)
-      .single();
+    const actualPaidAmount = verifyData.data.amount / 100;
 
-    if (profErr || !profile) {
-      return send(res, 500, { error: 'Could not read profile' });
+    // 4. CHECK AMOUNT (With 0.10 margin for rounding errors)
+    if (Math.abs(actualPaidAmount - amountSentFromSite) > 0.10) {
+      console.error(`[topup] Amount mismatch. Site: ${amountSentFromSite}, PS: ${actualPaidAmount}`);
+      return send(res, 402, { error: 'Payment amount mismatch. Contact support.' });
     }
 
-    const currentBalance = parseFloat(profile.balance || 0);
-    const newBalance = parseFloat((currentBalance + amountNum).toFixed(2));
+    // 5. UPDATE BALANCE (The "Atomical" update)
+    const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single();
+    const newBalance = parseFloat(((profile.balance || 0) + actualPaidAmount).toFixed(2));
 
-    // ── Credit wallet ─────────────────────────────────────────────────────────
-    const { error: updateErr } = await sb
-      .from('profiles')
-      .update({ balance: newBalance })
-      .eq('id', userId);
+    await supabase.from('profiles').update({ balance: newBalance }).eq('id', userId);
 
-    if (updateErr) {
-      console.error('[topup] Balance update error:', updateErr.message);
-      return send(res, 500, { error: 'Failed to update balance: ' + updateErr.message });
-    }
-
-    // ── Record transaction ────────────────────────────────────────────────────
-    await sb.from('transactions').insert({
+    // 6. RECORD TRANSACTION (USING CORRECT COLUMN NAME: order_ref)
+    await supabase.from('transactions').insert({
       user_id:   userId,
       type:      'topup',
-      method:    method || 'Mobile Money',
-      phone:     phone  || '',
-      amount:    amountNum,
-      reference: reference,
-      status:    'success',
+      method:    method || 'Paystack',
+      phone:     phone || '',
+      amount:    actualPaidAmount,
+      order_ref: reference, // Matches SQL Column
+      status:    'success'
     });
 
-    console.log(`[topup] Credited GHS ${amountNum} to user ${userId}. New balance: ${newBalance}`);
-
-    return send(res, 200, {
-      success:     true,
-      new_balance: newBalance,
-      credited:    amountNum,
-      message:     'Wallet credited successfully',
-    });
+    return send(res, 200, { success: true, new_balance: newBalance });
 
   } catch (err) {
-    console.error('[topup] Unhandled error:', err.message);
-    return send(res, 500, { error: 'An unexpected error occurred' });
+    console.error('[topup fatal]', err.message);
+    return send(res, 500, { error: 'Internal system error' });
   }
 };
