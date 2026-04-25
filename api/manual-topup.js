@@ -1,74 +1,63 @@
 /**
  * EasyData GH — /api/manual-topup.js
- * FIXED: Auth handling and Column Name Mapping
+ * FINAL ROBUST VERSION
  */
 const { createClient } = require('@supabase/supabase-js');
 
-function setHeaders(res) {
-  res.setHeader('Content-Type', 'application/json');
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-}
+  res.setHeader('Content-Type', 'application/json');
 
-function send(res, status, body) { setHeaders(res); res.status(status).json(body); }
-
-module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') { setHeaders(res); return res.status(200).end(); }
-  if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // 1. Initialize Supabase Admin (Bypasses RLS)
-    const sb = createClient(
-      process.env.SUPABASE_URL, 
-      process.env.SUPABASE_SERVICE_KEY
-    );
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-    // 2. Get the Token from Headers
-    const authHeader = req.headers['authorization'] || '';
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    // Get the Token
+    const authHeader = req.headers.authorization || req.headers.Authorization || '';
+    // Use a simpler replace to ensure no characters are missed
+    const token = authHeader.split(' ')[1]; 
 
-    if (!token) return send(res, 401, { error: 'Login required' });
-
-    // 3. Verify User
-    const { data: auth, error: authErr } = await sb.auth.getUser(token);
-    
-    // If Supabase rejects the token (403/401), we stop here
-    if (authErr || !auth?.user) {
-      console.error('Auth Error:', authErr?.message);
-      return send(res, 401, { error: 'Session expired. Please log out and log back in.' });
+    if (!token) {
+        return res.status(401).json({ error: "No login token found. Please log in again." });
     }
 
-    const userId = auth.user.id;
+    // Verify User with Supabase
+    const { data: auth, error: authErr } = await supabase.auth.getUser(token);
+    
+    if (authErr || !auth?.user) {
+      console.error('Supabase Auth Rejection:', authErr?.message);
+      return res.status(401).json({ error: "Session expired. Please Log Out and Log In again." });
+    }
 
-    // 4. Parse Body
     const { amount, reference } = req.body;
     if (!amount || parseFloat(amount) < 5) {
-      return send(res, 400, { error: 'Minimum amount is GHS 5' });
+      return res.status(400).json({ error: 'Minimum amount is GHS 5' });
     }
 
-    // 5. INSERT INTO DB
-    // IMPORTANT: Changed 'reference' to 'order_ref' to match your SQL columns
-    const { error: dbErr } = await sb.from('transactions').insert({
-      user_id:   userId,
+    // Insert into DB using 'order_ref' column
+    const { error: dbErr } = await supabase.from('transactions').insert({
+      user_id:   auth.user.id,
       type:      'topup',
       method:    'Manual MTN MoMo',
       phone:     '0536426562',
       amount:    parseFloat(amount),
-      order_ref: reference || ('MAN_REQ_' + Date.now()), // Changed to order_ref
+      order_ref: reference || ('MAN_REQ_' + Date.now()),
       status:    'pending',
       note:      'Awaiting admin verification'
     });
 
     if (dbErr) {
-      console.error('Database Insert Error:', dbErr.message);
-      return send(res, 500, { error: 'Could not log request. Try again.' });
+      console.error('DB Error:', dbErr.message);
+      return res.status(500).json({ error: 'Database update failed.' });
     }
 
-    return send(res, 200, { success: true, message: 'Top-up request logged successfully.' });
+    return res.status(200).json({ success: true, message: 'Request submitted!' });
 
   } catch (err) {
-    console.error('[manual-topup fatal]', err.message);
-    return send(res, 500, { error: 'Internal server error' });
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
