@@ -1,6 +1,6 @@
 /**
  * EasyData GH — /api/topup.js
- * FEE-AWARE VERSION: Credits user only with the Net Amount after Paystack fees.
+ * RESILIENT VERSION: Trusts Paystack as the Source of Truth to prevent 402 errors.
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -32,9 +32,9 @@ module.exports = async function handler(req, res) {
     if (authErr || !authData?.user) return send(res, 401, { error: 'Session expired' });
     const userId = authData.user.id;
 
-    const { reference, amount: amountFromSite } = req.body;
+    const { reference } = req.body;
 
-    // 2. Prevent Double Credit (Idempotency)
+    // 2. Prevent Double Credit (Using order_ref column)
     const { data: existing } = await supabase
       .from('transactions')
       .select('id')
@@ -55,43 +55,39 @@ module.exports = async function handler(req, res) {
     const verifyData = await verifyRes.json();
 
     if (!verifyData.status || verifyData.data?.status !== 'success') {
-      return send(res, 402, { error: 'Payment not successful on Paystack' });
+      console.log(`TOPUP REJECTED: Paystack status was ${verifyData.data?.status}`);
+      return send(res, 402, { error: 'Payment not confirmed by Paystack. Please check your MoMo for a refund or try again.' });
     }
 
-    // 4. CALCULATE NET AMOUNT (Subtracting Charges)
-    // Paystack returns amounts and fees in Pesewas (divide by 100)
-    const grossAmount = verifyData.data.amount / 100; // What the user paid
-    const paystackFee = (verifyData.data.fees || 0) / 100; // Paystack's charge
-    const netAmount = parseFloat((grossAmount - paystackFee).toFixed(2)); // Actual money you keep
+    // 4. CALCULATE AMOUNTS
+    // We TRUST Paystack's data over the frontend data to avoid 402 errors.
+    const grossAmount = verifyData.data.amount / 100; // Total user paid
+    const paystackFee = (verifyData.data.fees || 0) / 100; // Paystack fee
+    const netAmount = parseFloat((grossAmount - paystackFee).toFixed(2)); // What goes to your bank
 
-    // 5. SECURITY CHECK
-    // Ensure the gross amount paid matches what the site expected (0.50 margin)
-    if (Math.abs(grossAmount - parseFloat(amountFromSite)) > 0.50) {
-       return send(res, 402, { error: 'Payment amount mismatch. Fraud detected.' });
-    }
-
-    // 6. UPDATE WALLET WITH NET AMOUNT
+    // 5. UPDATE WALLET
     const { data: profile } = await supabase.from('profiles').select('balance').eq('id', userId).single();
     const newBalance = parseFloat(((profile.balance || 0) + netAmount).toFixed(2));
 
     await supabase.from('profiles').update({ balance: newBalance }).eq('id', userId);
 
-    // 7. RECORD TRANSACTION
+    // 6. RECORD TRANSACTION
     await supabase.from('transactions').insert({
       user_id:   userId,
       type:      'topup',
       method:    'Paystack',
-      amount:    netAmount,      // We record the net amount credited
+      amount:    netAmount,
       order_ref: reference,
       status:    'success',
-      note:      `Gross: ${grossAmount}, Fee: ${paystackFee}` // Keep a note of the fees
+      note:      `System accepted Paystack Verified Amount. Gross: ${grossAmount}, Fee: ${paystackFee}`
     });
+
+    console.log(`TOPUP SUCCESS: User ${userId} credited with net GHS ${netAmount}`);
 
     return send(res, 200, { 
         success: true, 
         new_balance: newBalance,
-        credited: netAmount,
-        fee_deducted: paystackFee
+        credited: netAmount
     });
 
   } catch (err) {
